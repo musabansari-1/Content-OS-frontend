@@ -39,9 +39,11 @@ function App() {
   const [profileMode, setProfileMode] = useState("samples");
   const [sampleText, setSampleText] = useState("");
   const [youtubeText, setYoutubeText] = useState("");
+  const [youtubeTranscriptText, setYoutubeTranscriptText] = useState("");
   const [profileStatus, setProfileStatus] = useState("idle");
   const [profileError, setProfileError] = useState("");
   const [voiceProfile, setVoiceProfile] = useState(null);
+  const [generateTranscript, setGenerateTranscript] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -183,8 +185,8 @@ function App() {
   const handleGenerate = async (event) => {
     event.preventDefault();
 
-    if (!videoInput.trim()) {
-      setGenerateError("Paste a YouTube URL or video ID to generate content.");
+    if (!videoInput.trim() && !generateTranscript.trim()) {
+      setGenerateError("Paste a YouTube URL/video ID or a transcript to generate content.");
       return;
     }
 
@@ -199,6 +201,7 @@ function App() {
     try {
       const payload = {
         ...buildVideoPayload(videoInput),
+        transcript: generateTranscript.trim(),
         target_assets: selectedAssets,
       };
 
@@ -235,14 +238,16 @@ function App() {
     event.preventDefault();
 
     const youtubeUrls = parseLineItems(youtubeText);
-    if (!youtubeUrls.length) {
-      setProfileError("Paste at least one YouTube URL or video ID.");
+    const transcripts = parseSampleBlocks(youtubeTranscriptText);
+    if (!youtubeUrls.length && !transcripts.length) {
+      setProfileError("Paste at least one YouTube URL, video ID, or transcript.");
       return;
     }
 
     await saveVoiceProfile("/me/voice-profile/from-youtube", {
       youtube_urls: youtubeUrls.filter((item) => item.startsWith("http")),
       youtube_video_ids: youtubeUrls.filter((item) => !item.startsWith("http")),
+      transcripts,
     });
   };
 
@@ -459,10 +464,19 @@ function App() {
                 <label className="field">
                   <span>YouTube URLs or video IDs</span>
                   <textarea
-                    rows={8}
+                    rows={5}
                     placeholder="Paste one YouTube URL or video ID per line."
                     value={youtubeText}
                     onChange={(event) => setYoutubeText(event.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>Or paste YouTube transcripts</span>
+                  <textarea
+                    rows={7}
+                    placeholder="Paste one transcript, leave a blank line, then paste the next transcript."
+                    value={youtubeTranscriptText}
+                    onChange={(event) => setYoutubeTranscriptText(event.target.value)}
                   />
                 </label>
                 <button className="primary-button" type="submit" disabled={profileStatus === "loading"}>
@@ -532,6 +546,16 @@ function App() {
                   placeholder="https://www.youtube.com/watch?v=... or dQw4w9WgXcQ"
                   value={videoInput}
                   onChange={(event) => setVideoInput(event.target.value)}
+                />
+              </label>
+
+              <label className="field">
+                <span>Or paste transcript</span>
+                <textarea
+                  rows={6}
+                  placeholder="Paste the transcript here if the YouTube video cannot be fetched."
+                  value={generateTranscript}
+                  onChange={(event) => setGenerateTranscript(event.target.value)}
                 />
               </label>
 
@@ -738,6 +762,9 @@ async function apiFetch(path, options = {}, token = "") {
 
 function buildVideoPayload(value) {
   const trimmed = value.trim();
+  if (!trimmed) {
+    return {};
+  }
   if (trimmed.startsWith("http")) {
     return { video_url: trimmed };
   }
