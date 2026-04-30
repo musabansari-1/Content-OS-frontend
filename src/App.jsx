@@ -186,6 +186,34 @@ function App() {
     });
   };
 
+  const handleGenerateVideoInputChange = (value) => {
+    setVideoInput(value);
+    if (value.trim()) {
+      setGenerateTranscript("");
+    }
+  };
+
+  const handleGenerateTranscriptChange = (value) => {
+    setGenerateTranscript(value);
+    if (value.trim()) {
+      setVideoInput("");
+    }
+  };
+
+  const handleYoutubeProfileInputChange = (value) => {
+    setYoutubeText(value);
+    if (value.trim()) {
+      setYoutubeTranscriptText("");
+    }
+  };
+
+  const handleYoutubeProfileTranscriptChange = (value) => {
+    setYoutubeTranscriptText(value);
+    if (value.trim()) {
+      setYoutubeText("");
+    }
+  };
+
   const handleAuthSubmit = async (event) => {
     event.preventDefault();
 
@@ -522,7 +550,7 @@ function App() {
                     rows={5}
                     placeholder="Paste one YouTube URL or video ID per line."
                     value={youtubeText}
-                    onChange={(event) => setYoutubeText(event.target.value)}
+                    onChange={(event) => handleYoutubeProfileInputChange(event.target.value)}
                   />
                 </label>
                 <label className="field">
@@ -531,7 +559,7 @@ function App() {
                     rows={7}
                     placeholder="Paste one transcript, leave a blank line, then paste the next transcript."
                     value={youtubeTranscriptText}
-                    onChange={(event) => setYoutubeTranscriptText(event.target.value)}
+                    onChange={(event) => handleYoutubeProfileTranscriptChange(event.target.value)}
                   />
                 </label>
                 <button className="primary-button" type="submit" disabled={profileStatus === "loading"}>
@@ -600,7 +628,7 @@ function App() {
                   type="text"
                   placeholder="https://www.youtube.com/watch?v=... or dQw4w9WgXcQ"
                   value={videoInput}
-                  onChange={(event) => setVideoInput(event.target.value)}
+                  onChange={(event) => handleGenerateVideoInputChange(event.target.value)}
                 />
               </label>
 
@@ -610,7 +638,7 @@ function App() {
                   rows={6}
                   placeholder="Paste the transcript here if the YouTube video cannot be fetched."
                   value={generateTranscript}
-                  onChange={(event) => setGenerateTranscript(event.target.value)}
+                  onChange={(event) => handleGenerateTranscriptChange(event.target.value)}
                 />
               </label>
 
