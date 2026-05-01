@@ -539,7 +539,11 @@ function App() {
                   />
                 </label>
                 <button className="primary-button" type="submit" disabled={profileStatus === "loading"}>
-                  {profileStatus === "loading" ? "Saving..." : "Save voice profile"}
+                  {profileStatus === "loading"
+                    ? "Refining..."
+                    : voiceProfile
+                      ? "Refine voice profile"
+                      : "Save voice profile"}
                 </button>
               </form>
             ) : (
@@ -563,7 +567,11 @@ function App() {
                   />
                 </label>
                 <button className="primary-button" type="submit" disabled={profileStatus === "loading"}>
-                  {profileStatus === "loading" ? "Analyzing..." : "Build from YouTube"}
+                  {profileStatus === "loading"
+                    ? "Refining..."
+                    : voiceProfile
+                      ? "Refine from YouTube"
+                      : "Build from YouTube"}
                 </button>
               </form>
             )}
@@ -584,6 +592,9 @@ function App() {
 
                 <p className="summary-copy">
                   {voiceProfile.style_summary || "Your saved voice profile will show here."}
+                </p>
+                <p className="muted-copy">
+                  New samples now refine this profile over time instead of replacing it outright.
                 </p>
 
                 <div className="summary-grid">
