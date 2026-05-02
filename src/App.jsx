@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 const AUTH_STORAGE_KEY = "contentos-auth";
+const WORKSPACE_STORAGE_PREFIX = "contentos-workspace-v2";
+const DEFAULT_ROUTE = "home";
 
 function App() {
+  const [route, setRoute] = useState(() => getRouteFromHash());
   const [token, setToken] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) ?? "{}").token ?? "";
@@ -30,12 +33,19 @@ function App() {
   const [bootStatus, setBootStatus] = useState(token ? "loading" : "ready");
 
   const [videoInput, setVideoInput] = useState("");
-  const [results, setResults] = useState([]);
+  const [generateTranscript, setGenerateTranscript] = useState("");
   const [generateStatus, setGenerateStatus] = useState("idle");
   const [generateError, setGenerateError] = useState("");
   const [generateJob, setGenerateJob] = useState(null);
+  const [lastGeneratedCount, setLastGeneratedCount] = useState(0);
   const [targetAssets, setTargetAssets] = useState([]);
   const [selectedAssets, setSelectedAssets] = useState([]);
+
+  const [workspaceAssets, setWorkspaceAssets] = useState([]);
+  const [workspaceSaveStatus, setWorkspaceSaveStatus] = useState("idle");
+  const [activeAssetId, setActiveAssetId] = useState("");
+  const [activeBlockId, setActiveBlockId] = useState("");
+  const [workspaceLoaded, setWorkspaceLoaded] = useState(false);
 
   const [profileMode, setProfileMode] = useState("samples");
   const [sampleText, setSampleText] = useState("");
@@ -44,7 +54,12 @@ function App() {
   const [profileStatus, setProfileStatus] = useState("idle");
   const [profileError, setProfileError] = useState("");
   const [voiceProfile, setVoiceProfile] = useState(null);
-  const [generateTranscript, setGenerateTranscript] = useState("");
+
+  useEffect(() => {
+    const syncRoute = () => setRoute(getRouteFromHash());
+    window.addEventListener("hashchange", syncRoute);
+    return () => window.removeEventListener("hashchange", syncRoute);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,7 +73,9 @@ function App() {
 
         const catalog = Array.isArray(response.target_assets) ? response.target_assets : [];
         setTargetAssets(catalog);
-        setSelectedAssets(catalog.slice(0, 3).map((asset) => asset.asset_type));
+        setSelectedAssets((current) =>
+          current.length ? current : catalog.slice(0, 3).map((asset) => asset.asset_type),
+        );
       } catch (error) {
         if (!cancelled) {
           setGenerateError(error.message);
@@ -84,7 +101,9 @@ function App() {
     async function bootstrap() {
       try {
         const me = await apiFetch("/me", { method: "GET" }, token);
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
 
         setUser(me);
         persistAuth(token, me);
@@ -119,6 +138,44 @@ function App() {
   }, [token]);
 
   useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const storedWorkspace = readWorkspace(user);
+    if (Array.isArray(storedWorkspace.assets) && storedWorkspace.assets.length) {
+      setWorkspaceAssets(storedWorkspace.assets);
+      setActiveAssetId(storedWorkspace.assets[0].id);
+      setWorkspaceSaveStatus("saved");
+      setWorkspaceLoaded(true);
+      return;
+    }
+
+    setWorkspaceAssets([]);
+    setWorkspaceSaveStatus("idle");
+    setWorkspaceLoaded(true);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !workspaceLoaded) {
+      return undefined;
+    }
+
+    setWorkspaceSaveStatus("saving");
+    const timeoutId = window.setTimeout(() => {
+      writeWorkspace(user, {
+        assets: workspaceAssets,
+        savedAt: new Date().toISOString(),
+      });
+      setWorkspaceSaveStatus("saved");
+    }, 450);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [user, workspaceAssets, workspaceLoaded]);
+
+  useEffect(() => {
     if (!token || generateStatus !== "loading" || !generateJob?.id) {
       return undefined;
     }
@@ -141,8 +198,20 @@ function App() {
               return;
             }
 
-            setResults(Array.isArray(job.result?.results) ? job.result.results : []);
+            const generatedResults = Array.isArray(job.result?.results) ? job.result.results : [];
+            const source = buildGenerationSource({
+              videoInput,
+              generateTranscript,
+              selectedAssets,
+            });
+            const newAssets = buildWorkspaceAssets(generatedResults, source);
+
+            setWorkspaceAssets((current) => [...newAssets, ...current]);
+            setActiveAssetId(newAssets[0]?.id || "");
+            setActiveBlockId("");
+            setLastGeneratedCount(newAssets.length);
             setGenerateStatus("success");
+            navigateTo("workspace");
           }, 900);
           return;
         }
@@ -171,6 +240,20 @@ function App() {
       }
     };
   }, [generateJob?.id, generateStatus, token]);
+
+  useEffect(() => {
+    if (!workspaceAssets.length) {
+      setActiveAssetId("");
+      return;
+    }
+
+    const exists = workspaceAssets.some((asset) => asset.id === activeAssetId);
+    if (!exists) {
+      setActiveAssetId(workspaceAssets[0].id);
+    }
+  }, [workspaceAssets, activeAssetId]);
+
+  const selectedAsset = workspaceAssets.find((asset) => asset.id === activeAssetId) ?? null;
 
   const handleAuthChange = (field, value) => {
     setAuthForm((current) => ({ ...current, [field]: value }));
@@ -261,7 +344,7 @@ function App() {
     setAuthError("");
     setProfileError("");
     setGenerateError("");
-    setResults([]);
+    setWorkspaceAssets([]);
     setVoiceProfile(null);
   };
 
@@ -281,6 +364,7 @@ function App() {
     setGenerateStatus("loading");
     setGenerateError("");
     setGenerateJob(null);
+    setLastGeneratedCount(0);
 
     try {
       const payload = {
@@ -298,7 +382,6 @@ function App() {
         token,
       );
       setGenerateJob(job);
-      setResults([]);
     } catch (error) {
       setGenerateStatus("error");
       setGenerateError(error.message);
@@ -356,6 +439,58 @@ function App() {
     }
   };
 
+  const handleBlockChange = (assetId, blockId, value) => {
+    setWorkspaceAssets((current) =>
+      current.map((asset) =>
+        asset.id === assetId
+          ? {
+              ...asset,
+              updatedAt: new Date().toISOString(),
+              blocks: asset.blocks.map((block) =>
+                block.id === blockId
+                  ? {
+                      ...block,
+                      value,
+                      isDirty: normalizeBlockValue(value) !== normalizeBlockValue(block.originalValue),
+                    }
+                  : block,
+              ),
+            }
+          : asset,
+      ),
+    );
+  };
+
+  const handleRevertBlock = (assetId, blockId) => {
+    setWorkspaceAssets((current) =>
+      current.map((asset) =>
+        asset.id === assetId
+          ? {
+              ...asset,
+              updatedAt: new Date().toISOString(),
+              blocks: asset.blocks.map((block) =>
+                block.id === blockId
+                  ? { ...block, value: block.originalValue, isDirty: false }
+                  : block,
+              ),
+            }
+          : asset,
+      ),
+    );
+  };
+
+  const handleDeleteAsset = (assetId) => {
+    setWorkspaceAssets((current) => current.filter((asset) => asset.id !== assetId));
+    if (activeAssetId === assetId) {
+      setActiveAssetId("");
+      setActiveBlockId("");
+    }
+  };
+
+  const handleExportWorkspace = async () => {
+    await navigator.clipboard.writeText(serializeWorkspace(workspaceAssets));
+  };
+
   if (bootStatus === "loading") {
     return (
       <div className="app-shell">
@@ -386,13 +521,13 @@ function App() {
               <span>Ship the right assets everywhere.</span>
             </h1>
             <p className="hero-copy">
-              Create an account, save your creator voice profile, and generate
-              the exact asset types you need, from Twitter threads to Instagram carousels.
+              Create an account, save your creator voice profile, and turn each generation
+              into a persistent workspace instead of a disposable AI response.
             </p>
             <div className="hero-pills">
               <span>User auth</span>
               <span>Saved voice profile</span>
-              <span>Asset-first generation</span>
+              <span>Persistent workspace</span>
             </div>
           </section>
 
@@ -418,8 +553,8 @@ function App() {
               <h2>{authMode === "login" ? "Welcome back" : "Create your workspace"}</h2>
               <p className="muted-copy">
                 {authMode === "login"
-                  ? "Sign in to access your saved creator voice profile."
-                  : "Create an account so every voice profile is stored per user."}
+                  ? "Sign in to access your saved creator voice profile and asset library."
+                  : "Create an account so your voice profile and workspace stay attached to you."}
               </p>
             </div>
 
@@ -480,16 +615,32 @@ function App() {
       <div className="ambient ambient-2" />
 
       <main className="app workspace-layout">
-        <header className="workspace-top">
+        {/* <header className="workspace-top">
           <div>
-            <p className="eyebrow">ContentOS Workspace</p>
+            <p className="eyebrow">ContentOS</p>
             <h1>
               Hi, {user.display_name}.
-              <span>Choose assets, not just platforms.</span>
+              <span>Build a reusable content workspace.</span>
             </h1>
           </div>
 
           <div className="top-actions">
+            <nav className="workspace-nav">
+              <button
+                className={`ghost-button ${route === "home" ? "nav-active" : ""}`}
+                onClick={() => navigateTo("home")}
+                type="button"
+              >
+                Main page
+              </button>
+              <button
+                className={`ghost-button ${route === "workspace" ? "nav-active" : ""}`}
+                onClick={() => navigateTo("workspace")}
+                type="button"
+              >
+                Workspace
+              </button>
+            </nav>
             <div className="user-chip">
               <strong>{user.display_name}</strong>
               <span>{user.email}</span>
@@ -498,216 +649,112 @@ function App() {
               Logout
             </button>
           </div>
-        </header>
+        </header> */}
 
-        <section className="workspace-grid">
-          <article className="panel">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">Voice profile</p>
-                <h2>Save the writing voice for this account</h2>
-              </div>
-              <StatusBadge status={profileStatus} />
-            </div>
+        <header className="header">
+  <div className="header-brand">
+    <div className="brand-mark">CO</div>
+    <div className="brand-text">
+      <span className="brand-name">ContentOS</span>
+      <span className="brand-tagline">Content workspace</span>
+    </div>
+  </div>
 
-            <div className="mode-switch">
-              <button
-                className={profileMode === "samples" ? "active" : ""}
-                type="button"
-                onClick={() => setProfileMode("samples")}
-              >
-                Paste writing samples
-              </button>
-              <button
-                className={profileMode === "youtube" ? "active" : ""}
-                type="button"
-                onClick={() => setProfileMode("youtube")}
-              >
-                Pull from YouTube
-              </button>
-            </div>
+  <div className="header-divider" />
 
-            {profileMode === "samples" ? (
-              <form className="stack-form" onSubmit={handleSaveSamplesProfile}>
-                <label className="field">
-                  <span>Writing samples or transcripts</span>
-                  <textarea
-                    rows={10}
-                    placeholder="Paste one sample, leave a blank line, then paste the next sample."
-                    value={sampleText}
-                    onChange={(event) => setSampleText(event.target.value)}
-                  />
-                </label>
-                <button className="primary-button" type="submit" disabled={profileStatus === "loading"}>
-                  {profileStatus === "loading"
-                    ? "Refining..."
-                    : voiceProfile
-                      ? "Refine voice profile"
-                      : "Save voice profile"}
-                </button>
-              </form>
-            ) : (
-              <form className="stack-form" onSubmit={handleSaveYoutubeProfile}>
-                <label className="field">
-                  <span>YouTube URLs or video IDs</span>
-                  <textarea
-                    rows={5}
-                    placeholder="Paste one YouTube URL or video ID per line."
-                    value={youtubeText}
-                    onChange={(event) => handleYoutubeProfileInputChange(event.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  <span>Or paste YouTube transcripts</span>
-                  <textarea
-                    rows={7}
-                    placeholder="Paste one transcript, leave a blank line, then paste the next transcript."
-                    value={youtubeTranscriptText}
-                    onChange={(event) => handleYoutubeProfileTranscriptChange(event.target.value)}
-                  />
-                </label>
-                <button className="primary-button" type="submit" disabled={profileStatus === "loading"}>
-                  {profileStatus === "loading"
-                    ? "Refining..."
-                    : voiceProfile
-                      ? "Refine from YouTube"
-                      : "Build from YouTube"}
-                </button>
-              </form>
-            )}
+  <div className="header-greeting">
+    <p className="greeting-name">
+      Hi, <span>{user.display_name}</span>
+    </p>
+    <p className="greeting-sub">Create once. Repurpose everywhere.</p>
 
-            {profileError ? <p className="error">{profileError}</p> : null}
+    
+  </div>
 
-            {voiceProfile ? (
-              <div className="profile-summary">
-                <div className="summary-top">
-                  <div>
-                    <p className="eyebrow">Current saved profile</p>
-                    <h3>Version {voiceProfile.version}</h3>
-                  </div>
-                  <span className="summary-tag">
-                    {voiceProfile.voice_profile_json?.tone?.slice(0, 2).join(" / ") || "Saved"}
-                  </span>
-                </div>
+  <nav className="header-nav">
+    <button
+      className={`nav-btn ${route === "home" ? "active" : ""}`}
+      onClick={() => navigateTo("home")}
+      type="button"
+    >
+      Main page
+    </button>
+    <button
+      className={`nav-btn ${route === "workspace" ? "active" : ""}`}
+      onClick={() => navigateTo("workspace")}
+      type="button"
+    >
+      Workspace
+    </button>
+  </nav>
 
-                <p className="summary-copy">
-                  {voiceProfile.style_summary || "Your saved voice profile will show here."}
-                </p>
-                <p className="muted-copy">
-                  New samples now refine this profile over time instead of replacing it outright.
-                </p>
+  <div className="header-right">
+    <div className="user-pill">
+      <div className="user-avatar">
+        {user.display_name.slice(0, 2).toUpperCase()}
+      </div>
+      <div className="user-info">
+        <span className="user-name">{user.display_name}</span>
+        <span className="user-email">{user.email}</span>
+      </div>
+    </div>
 
-                <div className="summary-grid">
-                  <SummaryList
-                    title="Voice anchors"
-                    items={voiceProfile.voice_profile_json?.voice_anchors ?? []}
-                  />
-                  <SummaryList
-                    title="Preferred devices"
-                    items={voiceProfile.voice_profile_json?.preferred_devices ?? []}
-                  />
-                  <SummaryList
-                    title="Preferred phrases"
-                    items={voiceProfile.voice_profile_json?.preferred_phrases ?? []}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="empty-panel">
-                <h3>No saved voice profile yet</h3>
-                <p>
-                  Save writing samples or YouTube transcripts once, and generation
-                  will reuse that profile for this account automatically.
-                </p>
-              </div>
-            )}
-          </article>
+    <button className="logout-btn" onClick={handleLogout} type="button">
+      <svg className="logout-icon" viewBox="0 0 16 16" fill="none">
+        <path d="M6 14H3a1 1 0 01-1-1V3a1 1 0 011-1h3M11 11l3-3-3-3M14 8H6"
+          stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+      Logout
+    </button>
+  </div>
+</header>
 
-          <article className="panel">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">Generate</p>
-                <h2>Create the exact assets you need</h2>
-              </div>
-              <StatusBadge status={generateStatus} />
-            </div>
-
-            <form className="stack-form" onSubmit={handleGenerate}>
-              <label className="field">
-                <span>YouTube URL or video ID</span>
-                <input
-                  type="text"
-                  placeholder="https://www.youtube.com/watch?v=... or dQw4w9WgXcQ"
-                  value={videoInput}
-                  onChange={(event) => handleGenerateVideoInputChange(event.target.value)}
-                />
-              </label>
-
-              <label className="field">
-                <span>Or paste transcript</span>
-                <textarea
-                  rows={6}
-                  placeholder="Paste the transcript here if the YouTube video cannot be fetched."
-                  value={generateTranscript}
-                  onChange={(event) => handleGenerateTranscriptChange(event.target.value)}
-                />
-              </label>
-
-              <div className="field">
-                <span>Target assets</span>
-                <div className="asset-grid">
-                  {targetAssets.map((asset) => (
-                    <button
-                      key={asset.asset_type}
-                      type="button"
-                      className={`asset-chip ${selectedAssets.includes(asset.asset_type) ? "selected" : ""}`}
-                      onClick={() => handleAssetToggle(asset.asset_type)}
-                    >
-                      <strong>{asset.label}</strong>
-                      <span>{asset.description}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button className="primary-button" type="submit" disabled={generateStatus === "loading"}>
-                {generateStatus === "loading" ? "Generating..." : "Generate content"}
-              </button>
-            </form>
-
-            {generateError ? <p className="error">{generateError}</p> : null}
-
-            
-          </article>
-        </section>
-
-        <section className="results-section">
-          {results.length ? (
-            <>
-              <div className="results-header">
-                <div>
-                  <p className="eyebrow">Generated assets</p>
-                  <h2>Ready to publish</h2>
-                </div>
-                <span className="results-count">{results.length} assets</span>
-              </div>
-
-              <div className="results-grid">
-                {results.map((result, index) => (
-                  <ContentCard key={`${result.asset_type}-${index}`} result={result} />
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="empty-panel large">
-              <h3>Your generated assets will appear here</h3>
-              <p>
-                Save a voice profile, choose your asset types, and generate a
-                targeted content pack instead of a generic platform dump.
-              </p>
-            </div>
-          )}
-        </section>
+        {route === "workspace" ? (
+          <WorkspacePage
+            assets={workspaceAssets}
+            activeAssetId={activeAssetId}
+            activeBlockId={activeBlockId}
+            onSelectAsset={setActiveAssetId}
+            onSelectBlock={setActiveBlockId}
+            onBlurBlock={() => setActiveBlockId("")}
+            onBlockChange={handleBlockChange}
+            onRevertBlock={handleRevertBlock}
+            onDeleteAsset={handleDeleteAsset}
+            onExportWorkspace={handleExportWorkspace}
+            saveStatus={workspaceSaveStatus}
+            selectedAsset={selectedAsset}
+            lastGeneratedCount={lastGeneratedCount}
+            onGoToMain={() => navigateTo("home")}
+          />
+        ) : (
+          <HomePage
+            profileMode={profileMode}
+            setProfileMode={setProfileMode}
+            sampleText={sampleText}
+            setSampleText={setSampleText}
+            youtubeText={youtubeText}
+            youtubeTranscriptText={youtubeTranscriptText}
+            profileStatus={profileStatus}
+            profileError={profileError}
+            voiceProfile={voiceProfile}
+            onYoutubeProfileInputChange={handleYoutubeProfileInputChange}
+            onYoutubeProfileTranscriptChange={handleYoutubeProfileTranscriptChange}
+            onSaveSamplesProfile={handleSaveSamplesProfile}
+            onSaveYoutubeProfile={handleSaveYoutubeProfile}
+            generateStatus={generateStatus}
+            generateError={generateError}
+            videoInput={videoInput}
+            generateTranscript={generateTranscript}
+            onGenerateVideoInputChange={handleGenerateVideoInputChange}
+            onGenerateTranscriptChange={handleGenerateTranscriptChange}
+            targetAssets={targetAssets}
+            selectedAssets={selectedAssets}
+            onAssetToggle={handleAssetToggle}
+            onGenerate={handleGenerate}
+            workspaceAssets={workspaceAssets}
+            onGoToWorkspace={() => navigateTo("workspace")}
+          />
+        )}
       </main>
 
       {generateStatus === "loading" ? (
@@ -721,40 +768,456 @@ function App() {
   );
 }
 
-function ContentCard({ result }) {
-  const data = safeParse(result.output);
-
+function HomePage({
+  profileMode,
+  setProfileMode,
+  sampleText,
+  setSampleText,
+  youtubeText,
+  youtubeTranscriptText,
+  profileStatus,
+  profileError,
+  voiceProfile,
+  onYoutubeProfileInputChange,
+  onYoutubeProfileTranscriptChange,
+  onSaveSamplesProfile,
+  onSaveYoutubeProfile,
+  generateStatus,
+  generateError,
+  videoInput,
+  generateTranscript,
+  onGenerateVideoInputChange,
+  onGenerateTranscriptChange,
+  targetAssets,
+  selectedAssets,
+  onAssetToggle,
+  onGenerate,
+  workspaceAssets,
+  onGoToWorkspace,
+}) {
   return (
-    <article className="content-card">
-      <div className="content-top">
-        <div>
-          <p className="platform">{result.platform}</p>
-          <h3>{result.asset_type ? formatAssetLabel(result.asset_type) : getPlatformHook(result.platform)}</h3>
-        </div>
-        <CopyButton data={JSON.stringify(data, null, 2)} />
-      </div>
+    <>
+      <section className="workspace-grid">
+        <article className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Voice profile</p>
+              <h2>Save the writing voice for this account</h2>
+            </div>
+            <StatusBadge status={profileStatus} />
+          </div>
 
-      <div className="content-body">
-        {Object.entries(data).map(([key, value]) => (
-          <div key={key} className="content-block">
-            <p className="content-label">{formatLabel(key)}</p>
+          <div className="mode-switch">
+            <button
+              className={profileMode === "samples" ? "active" : ""}
+              type="button"
+              onClick={() => setProfileMode("samples")}
+            >
+              Paste writing samples
+            </button>
+            <button
+              className={profileMode === "youtube" ? "active" : ""}
+              type="button"
+              onClick={() => setProfileMode("youtube")}
+            >
+              Pull from YouTube
+            </button>
+          </div>
 
-            {Array.isArray(value) ? (
-              <div className="content-list">
-                {value.map((item, index) => (
-                  <p key={index}>
-                    <span>{index + 1}</span>
-                    {item}
-                  </p>
+          {profileMode === "samples" ? (
+            <form className="stack-form" onSubmit={onSaveSamplesProfile}>
+              <label className="field">
+                <span>Writing samples or transcripts</span>
+                <textarea
+                  rows={10}
+                  placeholder="Paste one sample, leave a blank line, then paste the next sample."
+                  value={sampleText}
+                  onChange={(event) => setSampleText(event.target.value)}
+                />
+              </label>
+              <button className="primary-button" type="submit" disabled={profileStatus === "loading"}>
+                {profileStatus === "loading"
+                  ? "Refining..."
+                  : voiceProfile
+                    ? "Refine voice profile"
+                    : "Save voice profile"}
+              </button>
+            </form>
+          ) : (
+            <form className="stack-form" onSubmit={onSaveYoutubeProfile}>
+              <label className="field">
+                <span>YouTube URLs or video IDs</span>
+                <textarea
+                  rows={5}
+                  placeholder="Paste one YouTube URL or video ID per line."
+                  value={youtubeText}
+                  onChange={(event) => onYoutubeProfileInputChange(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Or paste YouTube transcripts</span>
+                <textarea
+                  rows={7}
+                  placeholder="Paste one transcript, leave a blank line, then paste the next transcript."
+                  value={youtubeTranscriptText}
+                  onChange={(event) => onYoutubeProfileTranscriptChange(event.target.value)}
+                />
+              </label>
+              <button className="primary-button" type="submit" disabled={profileStatus === "loading"}>
+                {profileStatus === "loading"
+                  ? "Refining..."
+                  : voiceProfile
+                    ? "Refine from YouTube"
+                    : "Build from YouTube"}
+              </button>
+            </form>
+          )}
+
+          {profileError ? <p className="error">{profileError}</p> : null}
+
+          {voiceProfile ? (
+            <div className="profile-summary">
+              <div className="summary-top">
+                <div>
+                  <p className="eyebrow">Current saved profile</p>
+                  <h3>Version {voiceProfile.version}</h3>
+                </div>
+                <span className="summary-tag">
+                  {voiceProfile.voice_profile_json?.tone?.slice(0, 2).join(" / ") || "Saved"}
+                </span>
+              </div>
+
+              <p className="summary-copy">
+                {voiceProfile.style_summary || "Your saved voice profile will show here."}
+              </p>
+              <p className="muted-copy">
+                New samples now refine this profile over time instead of replacing it outright.
+              </p>
+
+              <div className="summary-grid">
+                <SummaryList
+                  title="Voice anchors"
+                  items={voiceProfile.voice_profile_json?.voice_anchors ?? []}
+                />
+                <SummaryList
+                  title="Preferred devices"
+                  items={voiceProfile.voice_profile_json?.preferred_devices ?? []}
+                />
+                <SummaryList
+                  title="Preferred phrases"
+                  items={voiceProfile.voice_profile_json?.preferred_phrases ?? []}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="empty-panel">
+              <h3>No saved voice profile yet</h3>
+              <p>
+                Save writing samples or YouTube transcripts once, and generation
+                will reuse that profile for this account automatically.
+              </p>
+            </div>
+          )}
+        </article>
+
+        <article className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Generate</p>
+              <h2>Create the exact assets you need</h2>
+            </div>
+            <StatusBadge status={generateStatus} />
+          </div>
+
+          <form className="stack-form" onSubmit={onGenerate}>
+            <label className="field">
+              <span>YouTube URL or video ID</span>
+              <input
+                type="text"
+                placeholder="https://www.youtube.com/watch?v=... or dQw4w9WgXcQ"
+                value={videoInput}
+                onChange={(event) => onGenerateVideoInputChange(event.target.value)}
+              />
+            </label>
+
+            <label className="field">
+              <span>Or paste transcript</span>
+              <textarea
+                rows={6}
+                placeholder="Paste the transcript here if the YouTube video cannot be fetched."
+                value={generateTranscript}
+                onChange={(event) => onGenerateTranscriptChange(event.target.value)}
+              />
+            </label>
+
+            <div className="field">
+              <span>Target assets</span>
+              <div className="asset-grid">
+                {targetAssets.map((asset) => (
+                  <button
+                    key={asset.asset_type}
+                    type="button"
+                    className={`asset-chip ${selectedAssets.includes(asset.asset_type) ? "selected" : ""}`}
+                    onClick={() => onAssetToggle(asset.asset_type)}
+                  >
+                    <strong>{asset.label}</strong>
+                    <span>{asset.description}</span>
+                  </button>
                 ))}
               </div>
-            ) : (
-              <p className="content-text">{String(value)}</p>
-            )}
+            </div>
+
+            <button className="primary-button" type="submit" disabled={generateStatus === "loading"}>
+              {generateStatus === "loading" ? "Generating..." : "Generate content"}
+            </button>
+          </form>
+
+          {generateError ? <p className="error">{generateError}</p> : null}
+
+          <div className="workspace-preview-card">
+            <div className="panel-heading compact">
+              <div>
+                <p className="eyebrow">Workspace</p>
+                <h3>Your persistent asset library</h3>
+              </div>
+              <span className="results-count">{workspaceAssets.length} assets</span>
+            </div>
+            <p className="muted-copy">
+              Every generation gets added to your workspace instead of replacing the previous one.
+              Open the workspace to edit, reuse, export, or delete any asset.
+            </p>
+            <button className="ghost-button" onClick={onGoToWorkspace} type="button">
+              Open workspace
+            </button>
           </div>
-        ))}
+        </article>
+      </section>
+    </>
+  );
+}
+
+function WorkspacePage({
+  assets,
+  activeAssetId,
+  activeBlockId,
+  onSelectAsset,
+  onSelectBlock,
+  onBlurBlock,
+  onBlockChange,
+  onRevertBlock,
+  onDeleteAsset,
+  onExportWorkspace,
+  saveStatus,
+  selectedAsset,
+  lastGeneratedCount,
+  onGoToMain,
+}) {
+  return (
+    <section className="results-section">
+      {assets.length ? (
+        <>
+          <div className="results-header workspace-results-header">
+            <div>
+              <p className="eyebrow">Asset workspace</p>
+              <h2>Generate, refine, organize, reuse</h2>
+              <p className="muted-copy">
+                This workspace keeps your current and previous generations together in one place.
+              </p>
+            </div>
+            <div className="workspace-results-actions">
+              {lastGeneratedCount ? (
+                <span className="summary-tag">
+                  {lastGeneratedCount} new {lastGeneratedCount === 1 ? "asset" : "assets"} added
+                </span>
+              ) : null}
+              <span className={`status-badge status-${saveStatus}`}>
+                {getWorkspaceSaveLabel(saveStatus)}
+              </span>
+              {/* <button className="ghost-button small" onClick={onExportWorkspace} type="button">
+                Copy workspace
+              </button> */}
+            </div>
+          </div>
+
+          <div className="workspace-callout">
+            <strong>Click any content block to edit it.</strong>
+            <span>Each block autosaves as you type, and you can still copy or revert it anytime.</span>
+          </div>
+
+          <div className="asset-workspace">
+            <aside className="asset-sidebar">
+              {assets.map((asset, index) => (
+                <button
+                  key={asset.id}
+                  className={`asset-outline-item ${asset.id === activeAssetId ? "active" : ""}`}
+                  onClick={() => onSelectAsset(asset.id)}
+                  type="button"
+                >
+                  <span className="asset-outline-index">{String(index + 1).padStart(2, "0")}</span>
+                  <div className="asset-outline-copy">
+                    <strong>{asset.title}</strong>
+                    <p>{asset.platformLabel}</p>
+                    <span>{formatWorkspaceDate(asset.updatedAt || asset.createdAt)}</span>
+                  </div>
+                </button>
+              ))}
+            </aside>
+
+            {selectedAsset ? (
+              <article className="asset-document">
+                <div className="asset-document-top">
+                  <div>
+                    <p className="eyebrow">{selectedAsset.platformLabel}</p>
+                    <h3>{selectedAsset.title}</h3>
+                    <p className="muted-copy asset-meta">
+                      {selectedAsset.sourceLabel}
+                    </p>
+                  </div>
+                  <div className="editable-actions">
+                    {/* <button
+                      className="ghost-button small"
+                      onClick={() => navigator.clipboard.writeText(serializeAsset(selectedAsset))}
+                      type="button"
+                    >
+                      Copy asset
+                    </button> */}
+                    <button
+                      className="ghost-button small danger-button"
+                      onClick={() => onDeleteAsset(selectedAsset.id)}
+                      type="button"
+                    >
+                      Delete asset
+                    </button>
+                  </div>
+                </div>
+
+                <div className="asset-blocks">
+                  {selectedAsset.blocks.map((block) => (
+                    <EditableBlock
+                      key={block.id}
+                      assetId={selectedAsset.id}
+                      block={block}
+                      isActive={activeBlockId === block.id}
+                      onActivate={() => onSelectBlock(block.id)}
+                      onBlur={onBlurBlock}
+                      onChange={onBlockChange}
+                      onRevert={onRevertBlock}
+                    />
+                  ))}
+                </div>
+              </article>
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <div className="empty-panel large">
+          <h3>Your workspace is ready for its first asset</h3>
+          <p>
+            Generate content from the main page and every asset will be added here as a reusable
+            editing library.
+          </p>
+          <button className="primary-button" onClick={onGoToMain} type="button">
+            Go to main page
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function EditableBlock({
+  assetId,
+  block,
+  isActive,
+  onActivate,
+  onBlur,
+  onChange,
+  onRevert,
+}) {
+  const [copied, setCopied] = useState(false);
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (isActive && textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(
+        textareaRef.current.value.length,
+        textareaRef.current.value.length,
+      );
+    }
+  }, [isActive]);
+
+  const isList = Array.isArray(block.value);
+
+  const handleCopy = async () => {
+    const content = isList ? block.value.join("\n") : String(block.value ?? "");
+    await navigator.clipboard.writeText(content);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1400);
+  };
+
+  return (
+    <section className={`editable-block ${isActive ? "active" : ""} ${block.isDirty ? "dirty" : ""}`}>
+      <div className="editable-block-top">
+        <div>
+          <p className="content-label">{block.label}</p>
+          <span className="editable-block-hint">
+            {block.kind === "list" ? `${block.value.length} lines` : "Inline editable"}
+          </span>
+        </div>
+        <div className="editable-actions">
+          {!isActive ? <span className="edit-cue">Click to edit</span> : null}
+          <button className="ghost-button small" onClick={handleCopy} type="button">
+            {copied ? "Copied" : "Copy block"}
+          </button>
+          <button
+            className="ghost-button small"
+            onClick={() => onRevert(assetId, block.id)}
+            type="button"
+            disabled={!block.isDirty}
+          >
+            Revert
+          </button>
+        </div>
       </div>
-    </article>
+
+      {isActive ? (
+        <div className="editable-editor same-box-editor">
+          <textarea
+            ref={textareaRef}
+            rows={isList ? Math.max(6, block.value.length + 1) : Math.max(5, estimateRows(block.value))}
+            value={isList ? block.value.join("\n") : String(block.value ?? "")}
+            onBlur={onBlur}
+            onChange={(event) =>
+              onChange(
+                assetId,
+                block.id,
+                isList ? splitEditableList(event.target.value) : event.target.value,
+              )
+            }
+          />
+          <p className="muted-copy editor-note">
+            Autosave is on. Use one line per item for list blocks.
+          </p>
+        </div>
+      ) : (
+        <button className="editable-preview" onClick={onActivate} type="button">
+          <span className="editable-overlay-hint">Click to edit</span>
+          {isList ? (
+            <div className="content-list">
+              {block.value.map((item, index) => (
+                <p key={`${block.id}-${index}`}>
+                  <span>{index + 1}</span>
+                  {item}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p className="content-text">{String(block.value)}</p>
+          )}
+        </button>
+      )}
+    </section>
   );
 }
 
@@ -895,22 +1358,6 @@ function GenerationLoader({ job, selectedAssets, targetAssets }) {
   );
 }
 
-function CopyButton({ data }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(data);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-
-  return (
-    <button className="ghost-button small" onClick={handleCopy} type="button">
-      {copied ? "Copied" : "Copy"}
-    </button>
-  );
-}
-
 async function apiFetch(path, options = {}, token = "") {
   const headers = {
     "Content-Type": "application/json",
@@ -935,6 +1382,18 @@ async function apiFetch(path, options = {}, token = "") {
   }
 
   return data;
+}
+
+function getRouteFromHash() {
+  const hash = window.location.hash.replace(/^#/, "");
+  return hash === "/workspace" ? "workspace" : DEFAULT_ROUTE;
+}
+
+function navigateTo(nextRoute) {
+  const nextHash = nextRoute === "workspace" ? "#/workspace" : "#/";
+  if (window.location.hash !== nextHash) {
+    window.location.hash = nextHash;
+  }
 }
 
 function buildVideoPayload(value) {
@@ -1002,6 +1461,237 @@ function getPlatformHook(platform) {
   };
 
   return hooks[platform] ?? "Generated asset";
+}
+
+function buildGenerationSource({ videoInput, generateTranscript, selectedAssets }) {
+  if (videoInput.trim()) {
+    return `Generated from ${truncateText(videoInput.trim(), 68)} for ${selectedAssets.length} selected asset types.`;
+  }
+
+  return `Generated from pasted transcript for ${selectedAssets.length} selected asset types.`;
+}
+
+function buildWorkspaceAssets(results, sourceLabel) {
+  return results.map((result, index) => {
+    const data = safeParse(result.output);
+    const now = new Date().toISOString();
+    const title = result.asset_type
+      ? formatAssetLabel(result.asset_type)
+      : getPlatformHook(result.platform);
+
+    return {
+      id: buildAssetId(result, index),
+      title,
+      platformLabel: capitalize(result.platform || "generated"),
+      assetType: result.asset_type || "generic",
+      sourceLabel,
+      createdAt: now,
+      updatedAt: now,
+      blocks: buildBlocksFromOutput(data),
+    };
+  });
+}
+
+function buildBlocksFromOutput(data) {
+  return Object.entries(data).map(([key, value], index) => ({
+    id: `${key}-${index}-${generateLocalId()}`,
+    key,
+    label: formatLabel(key),
+    kind: Array.isArray(value) ? "list" : "text",
+    value: Array.isArray(value) ? value.map(formatListItemValue) : formatTextBlockValue(value),
+    originalValue: Array.isArray(value) ? value.map(formatListItemValue) : formatTextBlockValue(value),
+    isDirty: false,
+  }));
+}
+
+function formatTextBlockValue(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(formatListItemValue).join("\n");
+  }
+
+  const readable = extractReadableObjectText(value);
+  if (readable) {
+    return readable;
+  }
+
+  return safeStringify(value);
+}
+
+function formatListItemValue(value) {
+  const text = formatTextBlockValue(value);
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function extractReadableObjectText(value) {
+  if (!value || typeof value !== "object") {
+    return "";
+  }
+
+  const preferredKeys = [
+    "text",
+    "content",
+    "body",
+    "summary",
+    "caption",
+    "title",
+    "value",
+  ];
+
+  for (const key of preferredKeys) {
+    const candidate = value[key];
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  const nestedCollections = ["paragraphs", "sections", "blocks", "items"];
+  for (const key of nestedCollections) {
+    if (!Array.isArray(value[key])) {
+      continue;
+    }
+
+    const combined = value[key]
+      .map(formatTextBlockValue)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .join("\n\n");
+
+    if (combined) {
+      return combined;
+    }
+  }
+
+  return "";
+}
+
+function safeStringify(value) {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value ?? "");
+  }
+}
+
+function buildAssetId(result, index) {
+  return `${result.platform || "platform"}-${result.asset_type || "asset"}-${index}-${generateLocalId()}`;
+}
+
+function generateLocalId() {
+  return Math.random().toString(36).slice(2, 9);
+}
+
+function getWorkspaceStorageKey(user) {
+  const identifier = user?.id || user?.email || "anonymous";
+  return `${WORKSPACE_STORAGE_PREFIX}:${identifier}`;
+}
+
+function readWorkspace(user) {
+  try {
+    return JSON.parse(localStorage.getItem(getWorkspaceStorageKey(user)) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+function writeWorkspace(user, payload) {
+  localStorage.setItem(getWorkspaceStorageKey(user), JSON.stringify(payload));
+}
+
+function serializeWorkspace(assets) {
+  return assets.map(serializeAsset).join("\n\n");
+}
+
+function serializeAsset(asset) {
+  const lines = [`${asset.title} (${asset.platformLabel})`, `${asset.sourceLabel}`, ""];
+
+  for (const block of asset.blocks) {
+    lines.push(`${block.label}:`);
+    if (Array.isArray(block.value)) {
+      for (const item of block.value) {
+        lines.push(`- ${item}`);
+      }
+    } else {
+      lines.push(String(block.value));
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n").trim();
+}
+
+function normalizeBlockValue(value) {
+  return Array.isArray(value)
+    ? value.map((item) => item.trim()).join("\n")
+    : String(value ?? "").trim();
+}
+
+function splitEditableList(value) {
+  return value
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function estimateRows(value) {
+  return String(value ?? "").split("\n").length + 1;
+}
+
+function getWorkspaceSaveLabel(status) {
+  if (status === "saving") {
+    return "Autosaving";
+  }
+  if (status === "saved") {
+    return "Saved locally";
+  }
+  if (status === "error") {
+    return "Save issue";
+  }
+  return "Ready";
+}
+
+function capitalize(value) {
+  if (!value) {
+    return "";
+  }
+
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function truncateText(value, maxLength) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, maxLength - 1)}…`;
+}
+
+function formatWorkspaceDate(value) {
+  if (!value) {
+    return "Saved recently";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 function buildAssetProgress(jobAssets, selectedAssets, targetAssets) {
