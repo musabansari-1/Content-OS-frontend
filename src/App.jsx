@@ -8993,11 +8993,8 @@ function buildAssetMedia(result) {
 
 function buildWorkspaceAssets(results, sourceLabel) {
   return results.map((result, index) => {
-    const data = safeParse(result.output);
     const media = buildAssetMedia(result);
-    if (media && data && typeof data === "object" && !Array.isArray(data) && "generated_clip" in data) {
-      delete data.generated_clip;
-    }
+    const data = media ? {} : safeParse(result.output);
     const now = new Date().toISOString();
     const title = result.asset_type ? formatAssetLabel(result.asset_type) : getPlatformHook(result.platform);
     return {
