@@ -40,6 +40,7 @@
 // // //   const [lastGeneratedCount, setLastGeneratedCount] = useState(0);
 // // //   const [targetAssets, setTargetAssets] = useState([]);
 // // //   const [selectedAssets, setSelectedAssets] = useState([]);
+  // const [unavailableMessage, setUnavailableMessage] = useState("");
 
 // // //   const [workspaceAssets, setWorkspaceAssets] = useState([]);
 // // //   const [workspaceSaveStatus, setWorkspaceSaveStatus] = useState("idle");
@@ -958,10 +959,10 @@
 // // //                     key={asset.asset_type}
 // // //                     type="button"
 // // //                     className={`asset-chip ${selectedAssets.includes(asset.asset_type) ? "selected" : ""}`}
-// // //                     onClick={() => onAssetToggle(asset.asset_type)}
+// // //                     onClick={() => onAssetToggle(asset.asset_type)} title={["tiktok_clip", "instagram_reel"].includes(asset.asset_type) ? "Temporarily unavailable" : undefined}
 // // //                   >
 // // //                     <strong>{asset.label}</strong>
-// // //                     <span>{asset.description}</span>
+// // //                     <span>{asset.description}</span>{(["tiktok_clip", "instagram_reel"].includes(asset.asset_type)) && (<span className="unavailable-note">Temporarily unavailable</span>)}
 // // //                   </button>
 // // //                 ))}
 // // //               </div>
@@ -1888,6 +1889,7 @@
 // // //   const [lastGeneratedCount, setLastGeneratedCount] = useState(0);
 // // //   const [targetAssets, setTargetAssets] = useState([]);
 // // //   const [selectedAssets, setSelectedAssets] = useState([]);
+  // const [unavailableMessage, setUnavailableMessage] = useState("");
 
 // // //   const [workspaceAssets, setWorkspaceAssets] = useState([]);
 // // //   const [workspaceSaveStatus, setWorkspaceSaveStatus] = useState("idle");
@@ -2784,10 +2786,10 @@
 // // //                     key={asset.asset_type}
 // // //                     type="button"
 // // //                     className={`asset-chip ${selectedAssets.includes(asset.asset_type) ? "selected" : ""}`}
-// // //                     onClick={() => onAssetToggle(asset.asset_type)}
+// // //                     onClick={() => onAssetToggle(asset.asset_type)} title={["tiktok_clip", "instagram_reel"].includes(asset.asset_type) ? "Temporarily unavailable" : undefined}
 // // //                   >
 // // //                     <strong>{asset.label}</strong>
-// // //                     <span>{asset.description}</span>
+// // //                     <span>{asset.description}</span>{(["tiktok_clip", "instagram_reel"].includes(asset.asset_type)) && (<span className="unavailable-note">Temporarily unavailable</span>)}
 // // //                   </button>
 // // //                 ))}
 // // //               </div>
@@ -4073,6 +4075,7 @@
 // //   const [lastGeneratedCount, setLastGeneratedCount] = useState(0);
 // //   const [targetAssets, setTargetAssets] = useState([]);
 // //   const [selectedAssets, setSelectedAssets] = useState([]);
+  // const [unavailableMessage, setUnavailableMessage] = useState("");
 
 // //   const [workspaceAssets, setWorkspaceAssets] = useState([]);
 // //   const [workspaceSaveStatus, setWorkspaceSaveStatus] = useState("idle");
@@ -4984,9 +4987,9 @@
 // //               <span>Target assets</span>
 // //               <div className="asset-grid">
 // //                 {targetAssets.map((asset) => (
-// //                   <button key={asset.asset_type} type="button" className={`asset-chip ${selectedAssets.includes(asset.asset_type) ? "selected" : ""}`} onClick={() => onAssetToggle(asset.asset_type)}>
+// //                   <button key={asset.asset_type} type="button" className={`asset-chip ${selectedAssets.includes(asset.asset_type) ? "selected" : ""}`} onClick={() => onAssetToggle(asset.asset_type)} title={["tiktok_clip", "instagram_reel"].includes(asset.asset_type) ? "Temporarily unavailable" : undefined}>
 // //                     <strong>{asset.label}</strong>
-// //                     <span>{asset.description}</span>
+// //                     <span>{asset.description}</span>{(["tiktok_clip", "instagram_reel"].includes(asset.asset_type)) && (<span className="unavailable-note">Temporarily unavailable</span>)}
 // //                   </button>
 // //                 ))}
 // //               </div>
@@ -5603,6 +5606,7 @@
 //   const [lastGeneratedCount, setLastGeneratedCount] = useState(0);
 //   const [targetAssets, setTargetAssets] = useState([]);
 //   const [selectedAssets, setSelectedAssets] = useState([]);
+  // const [unavailableMessage, setUnavailableMessage] = useState("");
 
 //   const [workspaceAssets, setWorkspaceAssets] = useState([]);
 //   const [workspaceSaveStatus, setWorkspaceSaveStatus] = useState("idle");
@@ -6512,9 +6516,9 @@
 //               <span>Target assets</span>
 //               <div className="asset-grid">
 //                 {targetAssets.map((asset) => (
-//                   <button key={asset.asset_type} type="button" className={`asset-chip ${selectedAssets.includes(asset.asset_type) ? "selected" : ""}`} onClick={() => onAssetToggle(asset.asset_type)}>
+//                   <button key={asset.asset_type} type="button" className={`asset-chip ${selectedAssets.includes(asset.asset_type) ? "selected" : ""}`} onClick={() => onAssetToggle(asset.asset_type)} title={["tiktok_clip", "instagram_reel"].includes(asset.asset_type) ? "Temporarily unavailable" : undefined}>
 //                     <strong>{asset.label}</strong>
-//                     <span>{asset.description}</span>
+//                     <span>{asset.description}</span>{(["tiktok_clip", "instagram_reel"].includes(asset.asset_type)) && (<span className="unavailable-note">Temporarily unavailable</span>)}
 //                   </button>
 //                 ))}
 //               </div>
@@ -7052,6 +7056,7 @@
 
 
 import { useEffect, useRef, useState } from "react";
+import IntegrationsPage from "./IntegrationsPage";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -7133,6 +7138,7 @@ function App() {
   const [lastGeneratedCount, setLastGeneratedCount] = useState(0);
   const [targetAssets, setTargetAssets] = useState([]);
   const [selectedAssets, setSelectedAssets] = useState([]);
+  const [unavailableMessage, setUnavailableMessage] = useState("");
 
   const [workspaceAssets, setWorkspaceAssets] = useState([]);
   const [workspaceSaveStatus, setWorkspaceSaveStatus] = useState("idle");
@@ -7163,10 +7169,17 @@ function App() {
         const response = await apiFetch("/target-assets", { method: "GET" });
         if (cancelled) return;
         const catalog = Array.isArray(response.target_assets) ? response.target_assets : [];
-        setTargetAssets(catalog);
-        setSelectedAssets((current) =>
-          current.length ? current : catalog.slice(0, 3).map((asset) => asset.asset_type),
-        );
+        // Separate disabled asset types and move them to the end
+        const disabledTypes = ["tiktok_clip", "instagram_reel"];
+        const enabled = catalog.filter((asset) => !disabledTypes.includes(asset.asset_type));
+        const disabled = catalog.filter((asset) => disabledTypes.includes(asset.asset_type));
+        const ordered = [...enabled, ...disabled];
+        setTargetAssets(ordered);
+        setSelectedAssets((current) => {
+          if (current.length) return current;
+          // select first three enabled assets by default
+          return enabled.slice(0, 3).map((asset) => asset.asset_type);
+        });
       } catch (error) {
         if (!cancelled) setGenerateError(error.message);
       }
@@ -7287,11 +7300,19 @@ function App() {
     setAuthForm((current) => ({ ...current, [field]: value }));
   };
 
+  const disabledTypes = ["tiktok_clip", "instagram_reel"];
+  const isTemporarilyUnavailable = (assetType) => disabledTypes.includes(assetType);
   const handleAssetToggle = (assetType) => {
+    if (disabledTypes.includes(assetType)) {
+      const label = targetAssets.find((asset) => asset.asset_type === assetType)?.label ?? assetType.replaceAll("_", " ");
+      setUnavailableMessage(`${label} is temporarily unavailable right now. We’ll re-enable it as soon as it’s ready.`);
+      return;
+    }
     setSelectedAssets((current) => {
       if (current.includes(assetType)) return current.filter((item) => item !== assetType);
       return [...current, assetType];
     });
+    setUnavailableMessage("");
   };
 
   const handleGenerateVideoInputChange = (value) => {
@@ -7613,6 +7634,7 @@ function App() {
           <nav className="header-nav">
             <button className={`nav-btn ${route === "home" ? "active" : ""}`} onClick={() => navigateTo("home")} type="button">Main page</button>
             <button className={`nav-btn ${route === "workspace" ? "active" : ""}`} onClick={() => navigateTo("workspace")} type="button">Workspace</button>
+            <button className={`nav-btn ${route === "integrations" ? "active" : ""}`} onClick={() => navigateTo("integrations")} type="button">Integrations</button>
           </nav>
           <div className="header-right">
             <div className="user-pill">
@@ -7650,6 +7672,8 @@ function App() {
             lastGeneratedCount={lastGeneratedCount}
             onGoToMain={() => navigateTo("home")}
           />
+        ) : route === "integrations" ? (
+          <IntegrationsPage />
         ) : (
           <HomePage
             profileMode={profileMode}
@@ -7677,6 +7701,7 @@ function App() {
             selectedAssets={selectedAssets}
             onAssetToggle={handleAssetToggle}
             onGenerate={handleGenerate}
+            unavailableMessage={unavailableMessage}
             workspaceAssets={workspaceAssets}
             onGoToWorkspace={() => navigateTo("workspace")}
           />
@@ -8543,8 +8568,12 @@ function HomePage({
   onGenerateVideoInputChange, onGenerateTranscriptChange,
   onGenerateUploadedVideoChange,
   targetAssets, selectedAssets, onAssetToggle, onGenerate,
+  unavailableMessage,
   workspaceAssets, onGoToWorkspace,
 }) {
+  const disabledTypes = ["tiktok_clip", "instagram_reel"];
+  const isTemporarilyUnavailable = (assetType) => disabledTypes.includes(assetType);
+
   return (
     <>
       <section className="workspace-grid">
@@ -8651,12 +8680,35 @@ function HomePage({
               <span>Target assets</span>
               <div className="asset-grid">
                 {targetAssets.map((asset) => (
-                  <button key={asset.asset_type} type="button" className={`asset-chip ${selectedAssets.includes(asset.asset_type) ? "selected" : ""}`} onClick={() => onAssetToggle(asset.asset_type)}>
+                  <button
+                    key={asset.asset_type}
+                    type="button"
+                    className={[
+                      "asset-chip",
+                      selectedAssets.includes(asset.asset_type) ? "selected" : "",
+                      isTemporarilyUnavailable(asset.asset_type) ? "asset-chip-unavailable" : "",
+                    ].filter(Boolean).join(" ")}
+                    onClick={() => onAssetToggle(asset.asset_type)}
+                    title={isTemporarilyUnavailable(asset.asset_type) ? "Temporarily unavailable" : undefined}
+                    aria-disabled={isTemporarilyUnavailable(asset.asset_type) ? "true" : undefined}
+                  >
                     <strong>{asset.label}</strong>
                     <span>{asset.description}</span>
+                    {isTemporarilyUnavailable(asset.asset_type) ? (
+                      <span className="asset-chip-status" aria-hidden="true">
+                        {/* <span className="asset-chip-status-icon">⏸</span> */}
+                        Temporarily unavailable
+                      </span>
+                    ) : null}
                   </button>
                 ))}
               </div>
+              {unavailableMessage ? (
+                <p className="asset-unavailable-message" role="status" aria-live="polite">
+                  <span className="asset-unavailable-message-icon" aria-hidden="true">⚠</span>
+                  <span>{unavailableMessage}</span>
+                </p>
+              ) : null}
             </div>
             <button className="primary-button" type="submit" disabled={generateStatus === "loading"}>
               {generateStatus === "loading" ? "Generating..." : "Generate content"}
@@ -8917,11 +8969,18 @@ async function apiFetch(path, options = {}, token = "") {
 
 function getRouteFromHash() {
   const hash = window.location.hash.replace(/^#/, "");
-  return hash === "/workspace" ? "workspace" : DEFAULT_ROUTE;
+  const pathname = window.location.pathname.replace(/^\/+/, "");
+  if (hash === "/workspace") return "workspace";
+  if (hash === "/integrations") return "integrations";
+  if (pathname === "workspace") return "workspace";
+  if (pathname === "integrations") return "integrations";
+  return DEFAULT_ROUTE;
 }
 
 function navigateTo(nextRoute) {
-  const nextHash = nextRoute === "workspace" ? "#/workspace" : "#/";
+  let nextHash = "#/";
+  if (nextRoute === "workspace") nextHash = "#/workspace";
+  if (nextRoute === "integrations") nextHash = "#/integrations";
   if (window.location.hash !== nextHash) window.location.hash = nextHash;
 }
 
