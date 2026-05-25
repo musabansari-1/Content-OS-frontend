@@ -202,10 +202,6 @@ npm run preview  # Preview production build
 - Check that styles.css is imported in main.jsx
 - Verify CSS variable definitions in :root
 
-## 📄 License
-
-MIT License - feel free to use this project for personal or commercial purposes.
-
 ## 🙋 Support
 
 For questions or issues, please open an issue on the repository or contact the development team.
