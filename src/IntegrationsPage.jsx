@@ -28,7 +28,7 @@ const AVAILABLE_INTEGRATIONS = [
     name: "YouTube",
     platform: "content",
     category: "Content",
-    status: "available",
+    status: "coming-soon",
     description: "Manage video uploads and publishing",
     icon: "▶",
   },
@@ -37,7 +37,7 @@ const AVAILABLE_INTEGRATIONS = [
     name: "Instagram",
     platform: "publishing",
     category: "Publishing",
-    status: "beta",
+    status: "coming-soon",
     description: "Publish reels and carousel posts",
     icon: "📷",
   },
@@ -55,7 +55,7 @@ const AVAILABLE_INTEGRATIONS = [
     name: "Medium",
     platform: "publishing",
     category: "Publishing",
-    status: "available",
+    status: "coming-soon",
     description: "Publish blog posts and articles",
     icon: "◆",
   },
@@ -82,7 +82,7 @@ const AVAILABLE_INTEGRATIONS = [
     name: "Ghost",
     platform: "storage",
     category: "Storage",
-    status: "available",
+    status: "coming-soon",
     description: "Self-hosted publishing platform",
     icon: "👻",
   },
@@ -124,6 +124,13 @@ export default function IntegrationsPage() {
   }, []);
 
   const handleConnect = (integrationId, integrationName) => {
+    const integration = ALL_INTEGRATIONS.find((item) => item.id === integrationId);
+    if (integration?.status === "coming-soon") {
+      setToastMessage(`${integrationName} is coming soon.`);
+      setTimeout(() => setToastMessage(""), 3000);
+      return;
+    }
+
     if (integrationId === "linkedin") {
       window.location.href = `${API_BASE_URL}/auth/linkedin`;
       return;
