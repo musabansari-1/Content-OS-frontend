@@ -31,34 +31,38 @@ npm install
 npm run dev
 ```
 
-The application will open at `http://localhost:5173`
+The application will open at `http://localhost:3000`
 
 ### Configuration
 
 Create a `.env.local` file in the `frontend` directory:
 
 ```env
-VITE_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
 ## 📁 Project Structure
 
 ```
 src/
-├── App.jsx              # Main app component with routing
+├── app/
+│   ├── layout.jsx
+│   ├── page.jsx
+│   ├── workspace/page.jsx
+│   └── integrations/page.jsx
+├── App.jsx              # Main client app shell
 ├── IntegrationsPage.jsx # Integrations management
-├── main.jsx             # React entry point
 ├── styles.css           # Global styles and animations
-└── index.html           # HTML template
+└── components/          # Route wrappers and shared UI
 ```
 
 ## 🛠️ Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | React 18 |
-| Build Tool | Vite 5 |
-| Styling | CSS3 (custom, no frameworks) |
+| Framework | Next.js 15 |
+| Build Tool | Next.js |
+| Styling | Tailwind CSS + custom theme styles |
 | State Management | React Hooks |
 | HTTP Client | Fetch API |
 
@@ -187,7 +191,7 @@ npm run preview  # Preview production build
 ## 🐛 Troubleshooting
 
 ### API Connection Issues
-- Verify backend is running on the configured `VITE_API_URL`
+- Verify backend is running on the configured `NEXT_PUBLIC_API_URL`
 - Check browser console for CORS errors
 - Ensure JWT token is valid in localStorage
 
@@ -199,7 +203,7 @@ npm run preview  # Preview production build
 
 ### Styling Issues
 - Clear browser cache and rebuild
-- Check that styles.css is imported in main.jsx
+- Check that styles.css is imported in `src/app/layout.jsx`
 - Verify CSS variable definitions in :root
 
 ## 🙋 Support

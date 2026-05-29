@@ -1,6 +1,8 @@
+"use client";
+
 import { useEffect, useState } from "react";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 const AVAILABLE_INTEGRATIONS = [
   {

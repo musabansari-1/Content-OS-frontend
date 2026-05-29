@@ -36,6 +36,7 @@ pnpm-debug.log*
 .cache/
 .parcel-cache/
 .eslintcache
+.next/
 
 # testing
 coverage/

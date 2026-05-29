@@ -1,8 +1,11 @@
+"use client";
+
 import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import IntegrationsPage from "./IntegrationsPage";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const AUTH_STORAGE_KEY = "contentos-auth";
 const WORKSPACE_STORAGE_PREFIX = "contentos-workspace-v2";
 const DEFAULT_ROUTE = "home";
@@ -47,7 +50,9 @@ const STATUS_META = {
 };
 
 function App() {
-  const [route, setRoute] = useState(() => getRouteFromHash());
+  const router = useRouter();
+  const pathname = usePathname();
+  const [route, setRoute] = useState(() => getRouteFromPathname(pathname));
   const [token, setToken] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) ?? "{}").token ?? "";
@@ -97,12 +102,16 @@ function App() {
   const [profileStatus, setProfileStatus] = useState("idle");
   const [profileError, setProfileError] = useState("");
   const [voiceProfile, setVoiceProfile] = useState(null);
+  const navigateTo = (nextRoute) => {
+    setRoute(nextRoute);
+    if (nextRoute === "workspace") router.push("/workspace");
+    else if (nextRoute === "integrations") router.push("/integrations");
+    else router.push("/");
+  };
 
   useEffect(() => {
-    const syncRoute = () => setRoute(getRouteFromHash());
-    window.addEventListener("hashchange", syncRoute);
-    return () => window.removeEventListener("hashchange", syncRoute);
-  }, []);
+    setRoute(getRouteFromPathname(pathname));
+  }, [pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1910,21 +1919,11 @@ async function apiFetch(path, options = {}, token = "") {
   return data;
 }
 
-function getRouteFromHash() {
-  const hash = window.location.hash.replace(/^#/, "");
-  const pathname = window.location.pathname.replace(/^\/+/, "");
-  if (hash === "/workspace") return "workspace";
-  if (hash === "/integrations") return "integrations";
-  if (pathname === "workspace") return "workspace";
-  if (pathname === "integrations") return "integrations";
+function getRouteFromPathname(pathname = "") {
+  const cleaned = pathname.replace(/^\/+/, "");
+  if (cleaned === "workspace") return "workspace";
+  if (cleaned === "integrations") return "integrations";
   return DEFAULT_ROUTE;
-}
-
-function navigateTo(nextRoute) {
-  let nextHash = "#/";
-  if (nextRoute === "workspace") nextHash = "#/workspace";
-  if (nextRoute === "integrations") nextHash = "#/integrations";
-  if (window.location.hash !== nextHash) window.location.hash = nextHash;
 }
 
 function buildVideoPayload(value) {
