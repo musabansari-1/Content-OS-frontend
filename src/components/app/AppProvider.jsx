@@ -24,7 +24,7 @@ const AppStateContext = createContext(null);
 export function AppProvider({ children }) {
   const [token, setToken] = useState("");
   const [user, setUser] = useState(null);
-  const [authMode, setAuthMode] = useState("login");
+  const [authMode, setAuthMode] = useState("register");
   const [authForm, setAuthForm] = useState({
     email: "",
     password: "",
