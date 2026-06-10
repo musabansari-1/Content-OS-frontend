@@ -1,5 +1,5 @@
-import ContentOSAppClient from "../../components/ContentOSAppClient";
+import IntegrationsRoute from "../../components/routes/IntegrationsRoute";
 
 export default function Page() {
-  return <ContentOSAppClient initialRoute="integrations" />;
+  return <IntegrationsRoute />;
 }

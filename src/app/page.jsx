@@ -1,5 +1,5 @@
-import ContentOSAppClient from "../components/ContentOSAppClient";
+import HomeRoute from "../components/routes/HomeRoute";
 
 export default function Page() {
-  return <ContentOSAppClient initialRoute="home" />;
+  return <HomeRoute />;
 }

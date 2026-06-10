@@ -1,6 +1,6 @@
 import "./globals.css";
 import "../styles.css";
-import App from "../App";
+import { AppProvider } from "../components/app/AppProvider";
 
 export const metadata = {
   title: "ContentOS",
@@ -11,7 +11,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        <App />
+        <AppProvider>{children}</AppProvider>
       </body>
     </html>
   );

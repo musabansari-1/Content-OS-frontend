@@ -1,5 +1,5 @@
-import ContentOSAppClient from "../../components/ContentOSAppClient";
+import WorkspaceRoute from "../../components/routes/WorkspaceRoute";
 
 export default function Page() {
-  return <ContentOSAppClient initialRoute="workspace" />;
+  return <WorkspaceRoute />;
 }
