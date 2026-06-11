@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { useAppState } from "./components/app/AppProvider";
+import { apiFetch } from "./lib/appUtils";
 
 const AVAILABLE_INTEGRATIONS = [
   {
@@ -91,6 +92,7 @@ const AVAILABLE_INTEGRATIONS = [
 const ALL_INTEGRATIONS = [...AVAILABLE_INTEGRATIONS];
 
 export default function IntegrationsPage() {
+  const { token } = useAppState();
   const [connectedPlatforms, setConnectedPlatforms] = useState([]);
   const [loadingStates, setLoadingStates] = useState({});
   const [toastMessage, setToastMessage] = useState("");
@@ -99,8 +101,10 @@ export default function IntegrationsPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const linkedinStatus = params.get("linkedin");
+    const xStatus = params.get("x");
+    const reason = params.get("reason");
 
-    if (!linkedinStatus) {
+    if (!linkedinStatus && !xStatus) {
       return;
     }
 
@@ -119,11 +123,28 @@ export default function IntegrationsPage() {
       });
     }
 
+    if (xStatus === "connected") {
+      setConnectedPlatforms((prev) => (prev.includes("twitter") ? prev : [...prev, "twitter"]));
+      setCallbackNotice({
+        type: "success",
+        title: "X connected",
+        message: "Your X account is now connected and ready to use.",
+      });
+    } else if (xStatus === "error") {
+      setCallbackNotice({
+        type: "error",
+        title: "X connection failed",
+        message: reason
+          ? `We could not finish the X connection (${reason}). Please try again.`
+          : "We could not finish the X connection. Please try again.",
+      });
+    }
+
     const cleanUrl = `${window.location.pathname}${window.location.hash}`;
     window.history.replaceState({}, "", cleanUrl);
   }, []);
 
-  const handleConnect = (integrationId, integrationName) => {
+  const handleConnect = async (integrationId, integrationName) => {
     const integration = ALL_INTEGRATIONS.find((item) => item.id === integrationId);
     if (integration?.status === "coming-soon") {
       setToastMessage(`${integrationName} is coming soon.`);
@@ -131,19 +152,20 @@ export default function IntegrationsPage() {
       return;
     }
 
-    if (integrationId === "linkedin") {
-      window.location.href = `${API_BASE_URL}/auth/linkedin`;
-      return;
-    }
-
     setLoadingStates((prev) => ({ ...prev, [integrationId]: true }));
 
-    setTimeout(() => {
-      setConnectedPlatforms((prev) => (prev.includes(integrationId) ? prev : [...prev, integrationId]));
+    try {
+      const endpoint = integrationId === "linkedin" ? "/auth/linkedin" : "/auth/x";
+      const response = await apiFetch(endpoint, { method: "GET" }, token);
+      if (!response?.auth_url) {
+        throw new Error(`Could not start the ${integrationName} connection.`);
+      }
+      window.location.href = response.auth_url;
+    } catch (error) {
       setLoadingStates((prev) => ({ ...prev, [integrationId]: false }));
-      setToastMessage(`Connected to ${integrationName}.`);
+      setToastMessage(error.message || `Could not connect to ${integrationName}.`);
       setTimeout(() => setToastMessage(""), 3000);
-    }, 1500);
+    }
   };
 
   const handleDisconnect = (integrationId, integrationName) => {
