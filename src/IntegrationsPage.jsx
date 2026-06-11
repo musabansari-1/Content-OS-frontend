@@ -99,17 +99,34 @@ export default function IntegrationsPage() {
   const [callbackNotice, setCallbackNotice] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
     const params = new URLSearchParams(window.location.search);
     const linkedinStatus = params.get("linkedin");
     const xStatus = params.get("x");
     const reason = params.get("reason");
 
-    if (!linkedinStatus && !xStatus) {
-      return;
+    async function loadIntegrationStatus() {
+      if (!token) {
+        return;
+      }
+
+      try {
+        const response = await apiFetch("/status", { method: "GET" }, token);
+        if (cancelled) return;
+
+        const platforms = Array.isArray(response.connected_platform_ids)
+          ? response.connected_platform_ids
+          : [];
+        setConnectedPlatforms(platforms);
+      } catch (error) {
+        if (!cancelled) {
+          setToastMessage(error.message || "Could not load integration status.");
+          window.setTimeout(() => setToastMessage(""), 3000);
+        }
+      }
     }
 
     if (linkedinStatus === "connected") {
-      setConnectedPlatforms((prev) => (prev.includes("linkedin") ? prev : [...prev, "linkedin"]));
       setCallbackNotice({
         type: "success",
         title: "LinkedIn connected",
@@ -124,7 +141,6 @@ export default function IntegrationsPage() {
     }
 
     if (xStatus === "connected") {
-      setConnectedPlatforms((prev) => (prev.includes("twitter") ? prev : [...prev, "twitter"]));
       setCallbackNotice({
         type: "success",
         title: "X connected",
@@ -140,9 +156,15 @@ export default function IntegrationsPage() {
       });
     }
 
+    loadIntegrationStatus();
+
     const cleanUrl = `${window.location.pathname}${window.location.hash}`;
     window.history.replaceState({}, "", cleanUrl);
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const handleConnect = async (integrationId, integrationName) => {
     const integration = ALL_INTEGRATIONS.find((item) => item.id === integrationId);
