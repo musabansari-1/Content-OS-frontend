@@ -874,10 +874,18 @@ function AssetDocument({
   onRevertBlock,
   onDeleteAsset,
   onStatusChange,
+  onPublishLinkedIn,
+  linkedinPublishStatus,
+  linkedinPublishError,
+  linkedinPublishResult,
 }) {
   const dirtyCount = asset.blocks.filter((block) => block.isDirty).length;
   const [carouselView, setCarouselView] = useState("preview");
   const liveSlides = isCarouselAsset(asset) ? extractLiveSlides(asset.blocks) : null;
+  const isLinkedInAsset = (asset.assetType || "").toLowerCase().includes("linkedin");
+  const isPublishing = linkedinPublishStatus === "loading";
+  const canPublishLinkedIn = isLinkedInAsset;
+  const publishMatchesAsset = linkedinPublishResult?.assetId === asset.id;
 
   return (
     <article className="asset-document">
@@ -923,7 +931,32 @@ function AssetDocument({
           >
             Delete asset
           </button>
+          {canPublishLinkedIn ? (
+            <button
+              className="primary-button small"
+              onClick={() => onPublishLinkedIn(asset)}
+              type="button"
+              disabled={isPublishing}
+            >
+              {isPublishing ? "Publishing..." : "Publish to LinkedIn"}
+            </button>
+          ) : null}
         </div>
+        {canPublishLinkedIn ? (
+          <div className="asset-publish-status">
+            {publishMatchesAsset && linkedinPublishError ? (
+              <p className="error">{linkedinPublishError}</p>
+            ) : publishMatchesAsset && linkedinPublishStatus === "success" ? (
+              <p className="success">
+                LinkedIn post published{linkedinPublishResult?.linkedin_post_id ? ` (${linkedinPublishResult.linkedin_post_id})` : ""}.
+              </p>
+            ) : (
+              <p className="muted-copy">
+                Publish this LinkedIn asset directly to your connected account.
+              </p>
+            )}
+          </div>
+        ) : null}
       </div>
 
       {asset.media?.kind === "video" ? (
@@ -1100,6 +1133,10 @@ export default function WorkspacePage({
   onRevertBlock,
   onDeleteAsset,
   onStatusChange,
+  onPublishLinkedIn,
+  linkedinPublishStatus,
+  linkedinPublishError,
+  linkedinPublishResult,
   onExportWorkspace,
   saveStatus,
   selectedAsset,
@@ -1178,6 +1215,10 @@ export default function WorkspacePage({
                 onRevertBlock={onRevertBlock}
                 onDeleteAsset={onDeleteAsset}
                 onStatusChange={onStatusChange}
+                onPublishLinkedIn={onPublishLinkedIn}
+                linkedinPublishStatus={linkedinPublishStatus}
+                linkedinPublishError={linkedinPublishError}
+                linkedinPublishResult={linkedinPublishResult}
               />
             ) : (
               <div className="asset-document workspace-document-empty">

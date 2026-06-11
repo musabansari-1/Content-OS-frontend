@@ -23,6 +23,10 @@ export default function WorkspaceRoute() {
         onRevertBlock={app.handleRevertBlock}
         onDeleteAsset={app.handleDeleteAsset}
         onStatusChange={app.handleAssetStatusChange}
+        onPublishLinkedIn={app.handlePublishLinkedInAsset}
+        linkedinPublishStatus={app.linkedinPublishStatus}
+        linkedinPublishError={app.linkedinPublishError}
+        linkedinPublishResult={app.linkedinPublishResult}
         onExportWorkspace={app.handleExportWorkspace}
         saveStatus={app.workspaceSaveStatus}
         selectedAsset={app.selectedAsset}

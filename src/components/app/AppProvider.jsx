@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { API_BASE_URL } from "../../lib/appConstants";
 import {
   apiFetch,
+  buildLinkedInPostText,
   buildGenerationSource,
   buildVideoPayload,
   buildWorkspaceAssets,
@@ -59,6 +60,9 @@ export function AppProvider({ children }) {
   const [profileStatus, setProfileStatus] = useState("idle");
   const [profileError, setProfileError] = useState("");
   const [voiceProfile, setVoiceProfile] = useState(null);
+  const [linkedinPublishStatus, setLinkedinPublishStatus] = useState("idle");
+  const [linkedinPublishError, setLinkedinPublishError] = useState("");
+  const [linkedinPublishResult, setLinkedinPublishResult] = useState(null);
 
   useEffect(() => {
     try {
@@ -296,6 +300,9 @@ export function AppProvider({ children }) {
     setAuthStatus("idle");
     setAuthError("");
     setProfileError("");
+    setLinkedinPublishStatus("idle");
+    setLinkedinPublishError("");
+    setLinkedinPublishResult(null);
     setGenerateError("");
     setWorkspaceAssets([]);
     setVoiceProfile(null);
@@ -511,6 +518,41 @@ export function AppProvider({ children }) {
     }
   };
 
+  const handlePublishLinkedInAsset = async (asset) => {
+    if (!asset) {
+      setLinkedinPublishError("Select a LinkedIn asset first.");
+      return;
+    }
+    if (!asset.assetType || !asset.assetType.toLowerCase().includes("linkedin")) {
+      setLinkedinPublishError("This asset is not a LinkedIn post.");
+      return;
+    }
+
+    const text = buildLinkedInPostText(asset);
+    if (!text.trim()) {
+      setLinkedinPublishError("The selected asset does not have any content to publish.");
+      return;
+    }
+
+    setLinkedinPublishStatus("loading");
+    setLinkedinPublishError("");
+    setLinkedinPublishResult(null);
+
+    try {
+      const response = await apiFetch(
+        "/linkedin/publish",
+        { method: "POST", body: JSON.stringify({ text }) },
+        token,
+      );
+      setLinkedinPublishResult({ assetId: asset.id, ...response });
+      setLinkedinPublishStatus("success");
+    } catch (error) {
+      setLinkedinPublishStatus("error");
+      setLinkedinPublishError(error.message);
+      setLinkedinPublishResult({ assetId: asset.id, error: error.message });
+    }
+  };
+
   const handleExportWorkspace = async () => {
     await navigator.clipboard.writeText(serializeWorkspace(workspaceAssets));
   };
@@ -564,11 +606,15 @@ export function AppProvider({ children }) {
       handleAssetStatusChange,
       handleRevertBlock,
       handleDeleteAsset,
+      handlePublishLinkedInAsset,
       handleExportWorkspace,
       setGenerateTranscript,
       setVideoInput,
       setUploadedVideo,
       setGenerateError,
+      linkedinPublishStatus,
+      linkedinPublishError,
+      linkedinPublishResult,
       setYoutubeProfileInput(value) {
         setYoutubeText(value);
         if (value.trim()) setYoutubeTranscriptText("");
@@ -612,12 +658,18 @@ export function AppProvider({ children }) {
       generateStatus,
       generateTranscript,
       lastGeneratedCount,
+      linkedinPublishError,
+      linkedinPublishResult,
+      linkedinPublishStatus,
       profileError,
       profileMode,
       profileStatus,
       sampleText,
       selectedAsset,
       selectedAssets,
+      linkedinPublishError,
+      linkedinPublishResult,
+      linkedinPublishStatus,
       targetAssets,
       token,
       unavailableMessage,

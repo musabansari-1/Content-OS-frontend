@@ -273,6 +273,25 @@ export function serializeAsset(asset) {
   return lines.join("\n").trim();
 }
 
+export function buildLinkedInPostText(asset) {
+  if (!asset) return "";
+
+  const chunks = [];
+  const title = String(asset.title || "").trim();
+  if (title) chunks.push(title);
+
+  const bodyBlocks = Array.isArray(asset.blocks) ? asset.blocks : [];
+  for (const block of bodyBlocks) {
+    const blockValue = normalizeBlockValue(block.value);
+    if (!blockValue) continue;
+    chunks.push(block.label ? `${block.label}: ${blockValue}` : blockValue);
+  }
+
+  const text = chunks.join("\n\n").trim();
+  if (text.length <= 2800) return text;
+  return `${text.slice(0, 2797).trim()}...`;
+}
+
 export function normalizeBlockValue(value) {
   if (Array.isArray(value)) {
     return value
