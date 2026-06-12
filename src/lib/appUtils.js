@@ -276,16 +276,21 @@ export function serializeAsset(asset) {
 export function buildLinkedInPostText(asset) {
   if (!asset) return "";
 
-  const chunks = [];
-  const title = String(asset.title || "").trim();
-  if (title) chunks.push(title);
-
   const bodyBlocks = Array.isArray(asset.blocks) ? asset.blocks : [];
-  for (const block of bodyBlocks) {
-    const blockValue = normalizeBlockValue(block.value);
-    if (!blockValue) continue;
-    chunks.push(block.label ? `${block.label}: ${blockValue}` : blockValue);
-  }
+  const isLinkedInAsset =
+    String(asset.assetType || "").toLowerCase().includes("linkedin") ||
+    String(asset.platformLabel || "").toLowerCase() === "linkedin";
+
+  const chunks = bodyBlocks
+    .map((block) => {
+      const blockValue = normalizeBlockValue(block.value);
+      if (!blockValue) return "";
+      if (isLinkedInAsset && block.label && block.label.toLowerCase() === "post") {
+        return blockValue;
+      }
+      return block.label ? `${block.label}: ${blockValue}` : blockValue;
+    })
+    .filter(Boolean);
 
   const text = chunks.join("\n\n").trim();
   if (text.length <= 2800) return text;
