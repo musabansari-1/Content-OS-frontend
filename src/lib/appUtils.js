@@ -26,6 +26,7 @@ export function getRouteFromPathname(pathname = "") {
   const cleaned = pathname.replace(/^\/+/, "");
   if (cleaned === "workspace") return "workspace";
   if (cleaned === "integrations") return "integrations";
+  if (cleaned === "billing") return "billing";
   return DEFAULT_ROUTE;
 }
 
@@ -494,4 +495,69 @@ export function orderTargetAssets(catalog = []) {
 
 export function isTemporarilyUnavailableAsset(assetType) {
   return TEMP_UNAVAILABLE_ASSET_TYPES.includes(assetType);
+}
+
+let paddleScriptPromise = null;
+
+export async function ensurePaddleJs() {
+  if (typeof window === "undefined") {
+    throw new Error("Paddle checkout is only available in the browser.");
+  }
+
+  if (window.Paddle) {
+    return window.Paddle;
+  }
+
+  if (!paddleScriptPromise) {
+    paddleScriptPromise = new Promise((resolve, reject) => {
+      const existingScript = document.querySelector('script[data-paddle-js="true"]');
+      if (existingScript) {
+        existingScript.addEventListener("load", () => resolve(window.Paddle), { once: true });
+        existingScript.addEventListener("error", () => reject(new Error("Could not load Paddle.js.")), {
+          once: true,
+        });
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
+      script.async = true;
+      script.dataset.paddleJs = "true";
+      script.onload = () => resolve(window.Paddle);
+      script.onerror = () => reject(new Error("Could not load Paddle.js."));
+      document.head.appendChild(script);
+    });
+  }
+
+  return paddleScriptPromise;
+}
+
+export async function openPaddleCheckout(checkoutConfig) {
+  const Paddle = await ensurePaddleJs();
+  if (!Paddle) {
+    throw new Error("Paddle.js did not initialize.");
+  }
+
+  if (checkoutConfig.paddle_environment === "sandbox" && Paddle.Environment?.set) {
+    Paddle.Environment.set("sandbox");
+  }
+
+  if (Paddle.Initialize) {
+    Paddle.Initialize({
+      token: checkoutConfig.paddle_client_token,
+    });
+  }
+
+  Paddle.Checkout.open({
+    items: [{ priceId: checkoutConfig.price_id, quantity: 1 }],
+    customer: {
+      email: checkoutConfig.customer_email,
+    },
+    customData: checkoutConfig.custom_data,
+    settings: {
+      displayMode: "overlay",
+      successUrl: checkoutConfig.success_url,
+      theme: "dark",
+    },
+  });
 }

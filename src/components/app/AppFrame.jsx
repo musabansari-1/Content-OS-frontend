@@ -428,6 +428,7 @@ export default function AppFrame({ route, children }) {
     bootStatus,
     token,
     user,
+    billingSummary,
     handleLogout,
     generateStatus,
     generateJob,
@@ -492,8 +493,20 @@ export default function AppFrame({ route, children }) {
             >
               Integrations
             </Link>
+            <Link
+              className={`nav-btn ${route === "billing" ? "active" : ""}`}
+              href="/billing"
+            >
+              Billing
+            </Link>
           </nav>
           <div className="header-right">
+            {billingSummary ? (
+              <div className="plan-pill">
+                <span className="plan-pill-label">Plan</span>
+                <strong>{billingSummary.plan_label}</strong>
+              </div>
+            ) : null}
             <div className="user-pill">
               <div className="user-avatar">
                 {user.display_name.slice(0, 2).toUpperCase()}

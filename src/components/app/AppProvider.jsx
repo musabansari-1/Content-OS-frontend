@@ -9,8 +9,10 @@ import {
   buildVideoPayload,
   buildWorkspaceAssets,
   clearAuthState,
+  ensurePaddleJs,
   isTemporarilyUnavailableAsset,
   normalizeBlockValue,
+  openPaddleCheckout,
   orderTargetAssets,
   parseLineItems,
   parseSampleBlocks,
@@ -63,6 +65,15 @@ export function AppProvider({ children }) {
   const [linkedinPublishStatus, setLinkedinPublishStatus] = useState("idle");
   const [linkedinPublishError, setLinkedinPublishError] = useState("");
   const [linkedinPublishResult, setLinkedinPublishResult] = useState(null);
+  const [instagramPublishStatus, setInstagramPublishStatus] = useState("idle");
+  const [instagramPublishError, setInstagramPublishError] = useState("");
+  const [instagramPublishResult, setInstagramPublishResult] = useState(null);
+  const [billingSummary, setBillingSummary] = useState(null);
+  const [billingPlans, setBillingPlans] = useState([]);
+  const [billingStatus, setBillingStatus] = useState("idle");
+  const [billingError, setBillingError] = useState("");
+  const [billingCheckoutStatus, setBillingCheckoutStatus] = useState("idle");
+  const [billingCheckoutError, setBillingCheckoutError] = useState("");
 
   useEffect(() => {
     try {
@@ -80,7 +91,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadTargetAssets() {
+    async function loadPublicCatalog() {
       try {
         const response = await apiFetch("/target-assets", { method: "GET" });
         if (cancelled) return;
@@ -93,12 +104,16 @@ export function AppProvider({ children }) {
           if (current.length) return current;
           return enabled.slice(0, 3).map((asset) => asset.asset_type);
         });
+        const plans = await apiFetch("/billing/plans", { method: "GET" });
+        if (!cancelled) {
+          setBillingPlans(Array.isArray(plans) ? plans : []);
+        }
       } catch (error) {
         if (!cancelled) setGenerateError(error.message);
       }
     }
 
-    loadTargetAssets();
+    loadPublicCatalog();
     return () => {
       cancelled = true;
     };
@@ -107,6 +122,9 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!token) {
       setBootStatus("ready");
+      setBillingSummary(null);
+      setBillingStatus("idle");
+      setBillingError("");
       return;
     }
 
@@ -118,6 +136,12 @@ export function AppProvider({ children }) {
         if (cancelled) return;
         setUser(me);
         persistAuth(token, me);
+        const billing = await apiFetch("/billing/me", { method: "GET" }, token);
+        if (!cancelled) {
+          setBillingSummary(billing);
+          setBillingStatus("success");
+          setBillingError("");
+        }
         try {
           const profile = await apiFetch("/me/voice-profile", { method: "GET" }, token);
           if (!cancelled) setVoiceProfile(profile);
@@ -128,6 +152,8 @@ export function AppProvider({ children }) {
         if (!cancelled) {
           clearAuthState();
           setAuthError(error.message);
+          setBillingStatus("error");
+          setBillingError(error.message);
         }
       } finally {
         if (!cancelled) setBootStatus("ready");
@@ -303,6 +329,14 @@ export function AppProvider({ children }) {
     setLinkedinPublishStatus("idle");
     setLinkedinPublishError("");
     setLinkedinPublishResult(null);
+    setInstagramPublishStatus("idle");
+    setInstagramPublishError("");
+    setInstagramPublishResult(null);
+    setBillingSummary(null);
+    setBillingStatus("idle");
+    setBillingError("");
+    setBillingCheckoutStatus("idle");
+    setBillingCheckoutError("");
     setGenerateError("");
     setWorkspaceAssets([]);
     setVoiceProfile(null);
@@ -553,6 +587,85 @@ export function AppProvider({ children }) {
     }
   };
 
+  const handlePublishInstagramAsset = async (asset) => {
+    if (!asset) {
+      setInstagramPublishError("Select an Instagram asset first.");
+      return;
+    }
+    const assetType = String(asset.assetType || "").toLowerCase();
+    if (!assetType.includes("instagram")) {
+      setInstagramPublishError("This asset is not an Instagram reel or carousel.");
+      return;
+    }
+
+    setInstagramPublishStatus("loading");
+    setInstagramPublishError("");
+    setInstagramPublishResult(null);
+
+    try {
+      const response = await apiFetch(
+        "/instagram/publish",
+        { method: "POST", body: JSON.stringify({ asset }) },
+        token,
+      );
+      setInstagramPublishResult({ assetId: asset.id, ...response });
+      setInstagramPublishStatus("success");
+    } catch (error) {
+      setInstagramPublishStatus("error");
+      setInstagramPublishError(error.message);
+      setInstagramPublishResult({ assetId: asset.id, error: error.message });
+    }
+  };
+
+  const refreshBilling = async () => {
+    if (!token) return null;
+
+    setBillingStatus("loading");
+    setBillingError("");
+    try {
+      const [summary, plans] = await Promise.all([
+        apiFetch("/billing/me", { method: "GET" }, token),
+        billingPlans.length ? Promise.resolve(billingPlans) : apiFetch("/billing/plans", { method: "GET" }),
+      ]);
+      setBillingSummary(summary);
+      setBillingPlans(Array.isArray(plans) ? plans : []);
+      setBillingStatus("success");
+      return summary;
+    } catch (error) {
+      setBillingStatus("error");
+      setBillingError(error.message);
+      throw error;
+    }
+  };
+
+  const handleStartBillingCheckout = async (planCode) => {
+    if (!token) {
+      setBillingCheckoutError("Log in before starting checkout.");
+      return;
+    }
+
+    setBillingCheckoutStatus("loading");
+    setBillingCheckoutError("");
+
+    try {
+      await ensurePaddleJs();
+      const checkoutConfig = await apiFetch(
+        "/billing/checkout",
+        {
+          method: "POST",
+          body: JSON.stringify({ plan_code: planCode }),
+        },
+        token,
+      );
+      await openPaddleCheckout(checkoutConfig);
+      setBillingCheckoutStatus("success");
+    } catch (error) {
+      setBillingCheckoutStatus("error");
+      setBillingCheckoutError(error.message);
+      throw error;
+    }
+  };
+
   const handleExportWorkspace = async () => {
     await navigator.clipboard.writeText(serializeWorkspace(workspaceAssets));
   };
@@ -607,6 +720,7 @@ export function AppProvider({ children }) {
       handleRevertBlock,
       handleDeleteAsset,
       handlePublishLinkedInAsset,
+      handlePublishInstagramAsset,
       handleExportWorkspace,
       setGenerateTranscript,
       setVideoInput,
@@ -615,6 +729,17 @@ export function AppProvider({ children }) {
       linkedinPublishStatus,
       linkedinPublishError,
       linkedinPublishResult,
+      instagramPublishStatus,
+      instagramPublishError,
+      instagramPublishResult,
+      billingSummary,
+      billingPlans,
+      billingStatus,
+      billingError,
+      billingCheckoutStatus,
+      billingCheckoutError,
+      refreshBilling,
+      handleStartBillingCheckout,
       setYoutubeProfileInput(value) {
         setYoutubeText(value);
         if (value.trim()) setYoutubeTranscriptText("");
@@ -658,18 +783,24 @@ export function AppProvider({ children }) {
       generateStatus,
       generateTranscript,
       lastGeneratedCount,
+      billingCheckoutError,
+      billingCheckoutStatus,
+      billingError,
+      billingPlans,
+      billingStatus,
+      billingSummary,
       linkedinPublishError,
       linkedinPublishResult,
       linkedinPublishStatus,
+      instagramPublishError,
+      instagramPublishResult,
+      instagramPublishStatus,
       profileError,
       profileMode,
       profileStatus,
       sampleText,
       selectedAsset,
       selectedAssets,
-      linkedinPublishError,
-      linkedinPublishResult,
-      linkedinPublishStatus,
       targetAssets,
       token,
       unavailableMessage,
