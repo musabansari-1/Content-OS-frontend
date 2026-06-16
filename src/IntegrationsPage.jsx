@@ -38,7 +38,7 @@ const AVAILABLE_INTEGRATIONS = [
     name: "Instagram",
     platform: "publishing",
     category: "Publishing",
-    status: "coming-soon",
+    status: "available",
     description: "Publish reels and carousel posts",
     icon: "📷",
   },
@@ -103,6 +103,7 @@ export default function IntegrationsPage() {
     const params = new URLSearchParams(window.location.search);
     const linkedinStatus = params.get("linkedin");
     const xStatus = params.get("x");
+    const instagramStatus = params.get("instagram");
     const reason = params.get("reason");
 
     async function loadIntegrationStatus() {
@@ -154,6 +155,20 @@ export default function IntegrationsPage() {
           ? `We could not finish the X connection (${reason}). Please try again.`
           : "We could not finish the X connection. Please try again.",
       });
+    } else if (instagramStatus === "connected") {
+      setCallbackNotice({
+        type: "success",
+        title: "Instagram connected",
+        message: "Your Instagram account is now connected and ready to use.",
+      });
+    } else if (instagramStatus === "error") {
+      setCallbackNotice({
+        type: "error",
+        title: "Instagram connection failed",
+        message: reason
+          ? `We could not finish the Instagram connection (${reason}). Please try again.`
+          : "We could not finish the Instagram connection. Please try again.",
+      });
     }
 
     loadIntegrationStatus();
@@ -177,7 +192,12 @@ export default function IntegrationsPage() {
     setLoadingStates((prev) => ({ ...prev, [integrationId]: true }));
 
     try {
-      const endpoint = integrationId === "linkedin" ? "/auth/linkedin" : "/auth/x";
+      const endpoint =
+        integrationId === "linkedin"
+          ? "/auth/linkedin"
+          : integrationId === "instagram"
+            ? "/auth/instagram"
+            : "/auth/x";
       const response = await apiFetch(endpoint, { method: "GET" }, token);
       if (!response?.auth_url) {
         throw new Error(`Could not start the ${integrationName} connection.`);

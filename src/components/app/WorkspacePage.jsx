@@ -878,14 +878,22 @@ function AssetDocument({
   linkedinPublishStatus,
   linkedinPublishError,
   linkedinPublishResult,
+  onPublishInstagram,
+  instagramPublishStatus,
+  instagramPublishError,
+  instagramPublishResult,
 }) {
   const dirtyCount = asset.blocks.filter((block) => block.isDirty).length;
   const [carouselView, setCarouselView] = useState("preview");
   const liveSlides = isCarouselAsset(asset) ? extractLiveSlides(asset.blocks) : null;
   const isLinkedInAsset = (asset.assetType || "").toLowerCase().includes("linkedin");
+  const isInstagramAsset = (asset.assetType || "").toLowerCase().includes("instagram");
   const isPublishing = linkedinPublishStatus === "loading";
+  const isInstagramPublishing = instagramPublishStatus === "loading";
   const canPublishLinkedIn = isLinkedInAsset;
+  const canPublishInstagram = isInstagramAsset;
   const publishMatchesAsset = linkedinPublishResult?.assetId === asset.id;
+  const instagramPublishMatchesAsset = instagramPublishResult?.assetId === asset.id;
 
   return (
     <article className="asset-document">
@@ -941,6 +949,16 @@ function AssetDocument({
               {isPublishing ? "Publishing..." : "Publish to LinkedIn"}
             </button>
           ) : null}
+          {canPublishInstagram ? (
+            <button
+              className="primary-button small"
+              onClick={() => onPublishInstagram(asset)}
+              type="button"
+              disabled={isInstagramPublishing}
+            >
+              {isInstagramPublishing ? "Publishing..." : "Publish to Instagram"}
+            </button>
+          ) : null}
         </div>
         {canPublishLinkedIn ? (
           <div className="asset-publish-status">
@@ -953,6 +971,22 @@ function AssetDocument({
             ) : (
               <p className="muted-copy">
                 Publish this LinkedIn asset directly to your connected account.
+              </p>
+            )}
+          </div>
+        ) : null}
+        {canPublishInstagram ? (
+          <div className="asset-publish-status">
+            {instagramPublishMatchesAsset && instagramPublishError ? (
+              <p className="error">{instagramPublishError}</p>
+            ) : instagramPublishMatchesAsset && instagramPublishStatus === "success" ? (
+              <p className="success">
+                Instagram post published
+                {instagramPublishResult?.instagram_post_id ? ` (${instagramPublishResult.instagram_post_id})` : ""}.
+              </p>
+            ) : (
+              <p className="muted-copy">
+                Publish this Instagram {String(asset.assetType || "").toLowerCase().includes("carousel") ? "carousel" : "reel"} directly to your connected account.
               </p>
             )}
           </div>
@@ -1137,6 +1171,10 @@ export default function WorkspacePage({
   linkedinPublishStatus,
   linkedinPublishError,
   linkedinPublishResult,
+  onPublishInstagram,
+  instagramPublishStatus,
+  instagramPublishError,
+  instagramPublishResult,
   onExportWorkspace,
   saveStatus,
   selectedAsset,
@@ -1219,6 +1257,10 @@ export default function WorkspacePage({
                 linkedinPublishStatus={linkedinPublishStatus}
                 linkedinPublishError={linkedinPublishError}
                 linkedinPublishResult={linkedinPublishResult}
+                onPublishInstagram={onPublishInstagram}
+                instagramPublishStatus={instagramPublishStatus}
+                instagramPublishError={instagramPublishError}
+                instagramPublishResult={instagramPublishResult}
               />
             ) : (
               <div className="asset-document workspace-document-empty">
