@@ -274,6 +274,78 @@ export function serializeAsset(asset) {
   return lines.join("\n").trim();
 }
 
+export function isLinkedInAsset(asset) {
+  return String(asset?.assetType || "").toLowerCase().includes("linkedin");
+}
+
+export function isInstagramAsset(asset) {
+  return String(asset?.assetType || "").toLowerCase().includes("instagram");
+}
+
+export function isTikTokAsset(asset) {
+  return String(asset?.assetType || "").toLowerCase().includes("tiktok");
+}
+
+export function getSchedulingPlatform(asset) {
+  if (isLinkedInAsset(asset)) return "linkedin";
+  if (isInstagramAsset(asset)) return "instagram";
+  if (isTikTokAsset(asset)) return "tiktok";
+  return "";
+}
+
+export function isSchedulableAsset(asset) {
+  return Boolean(getSchedulingPlatform(asset));
+}
+
+export function buildScheduledPostPayload(asset) {
+  const platform = getSchedulingPlatform(asset);
+  const metadata = {
+    asset_id: String(asset?.id || "").trim(),
+    title: String(asset?.title || "").trim(),
+  };
+
+  if (platform === "linkedin") {
+    const text = buildLinkedInPostText(asset);
+    if (!text.trim()) {
+      throw new Error("The selected asset does not have any content to schedule.");
+    }
+    return { platform, payload: { text, metadata } };
+  }
+
+  if (platform === "instagram" || platform === "tiktok") {
+    return { platform, payload: { asset, metadata } };
+  }
+
+  throw new Error("This asset cannot be scheduled yet.");
+}
+
+export function getScheduledPostAssetId(post) {
+  if (!post || typeof post !== "object") return "";
+  const metadataId = String(post?.payload?.metadata?.asset_id || "").trim();
+  if (metadataId) return metadataId;
+  return String(post?.payload?.asset?.id || "").trim();
+}
+
+export function findScheduledPostForAsset(asset, scheduledPosts = []) {
+  const assetId = String(asset?.id || "").trim();
+  if (!assetId) return null;
+  return (
+    scheduledPosts.find((post) => getScheduledPostAssetId(post) === assetId) || null
+  );
+}
+
+export function formatScheduledPostTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Invalid date";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export function buildLinkedInPostText(asset) {
   if (!asset) return "";
 

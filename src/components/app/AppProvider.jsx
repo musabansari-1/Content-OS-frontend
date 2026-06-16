@@ -6,6 +6,7 @@ import {
   apiFetch,
   buildLinkedInPostText,
   buildGenerationSource,
+  buildScheduledPostPayload,
   buildVideoPayload,
   buildWorkspaceAssets,
   clearAuthState,
@@ -68,6 +69,14 @@ export function AppProvider({ children }) {
   const [instagramPublishStatus, setInstagramPublishStatus] = useState("idle");
   const [instagramPublishError, setInstagramPublishError] = useState("");
   const [instagramPublishResult, setInstagramPublishResult] = useState(null);
+  const [scheduledPosts, setScheduledPosts] = useState([]);
+  const [scheduledPostsStatus, setScheduledPostsStatus] = useState("idle");
+  const [scheduledPostsError, setScheduledPostsError] = useState("");
+  const [scheduleStatus, setScheduleStatus] = useState("idle");
+  const [scheduleError, setScheduleError] = useState("");
+  const [scheduleResult, setScheduleResult] = useState(null);
+  const [cancelScheduledPostId, setCancelScheduledPostId] = useState(null);
+  const [cancelScheduledPostError, setCancelScheduledPostError] = useState("");
   const [billingSummary, setBillingSummary] = useState(null);
   const [billingPlans, setBillingPlans] = useState([]);
   const [billingStatus, setBillingStatus] = useState("idle");
@@ -125,6 +134,14 @@ export function AppProvider({ children }) {
       setBillingSummary(null);
       setBillingStatus("idle");
       setBillingError("");
+      setScheduledPosts([]);
+      setScheduledPostsStatus("idle");
+      setScheduledPostsError("");
+      setScheduleStatus("idle");
+      setScheduleError("");
+      setScheduleResult(null);
+      setCancelScheduledPostId(null);
+      setCancelScheduledPostError("");
       return;
     }
 
@@ -147,6 +164,23 @@ export function AppProvider({ children }) {
           if (!cancelled) setVoiceProfile(profile);
         } catch (error) {
           if (!cancelled && error.status !== 404) setProfileError(error.message);
+        }
+        try {
+          const scheduled = await apiFetch(
+            "/scheduled-posts?status=scheduled&limit=20",
+            { method: "GET" },
+            token,
+          );
+          if (!cancelled) {
+            setScheduledPosts(Array.isArray(scheduled) ? scheduled : []);
+            setScheduledPostsStatus("success");
+            setScheduledPostsError("");
+          }
+        } catch (error) {
+          if (!cancelled) {
+            setScheduledPostsStatus("error");
+            setScheduledPostsError(error.message);
+          }
         }
       } catch (error) {
         if (!cancelled) {
@@ -332,6 +366,14 @@ export function AppProvider({ children }) {
     setInstagramPublishStatus("idle");
     setInstagramPublishError("");
     setInstagramPublishResult(null);
+    setScheduledPosts([]);
+    setScheduledPostsStatus("idle");
+    setScheduledPostsError("");
+    setScheduleStatus("idle");
+    setScheduleError("");
+    setScheduleResult(null);
+    setCancelScheduledPostId(null);
+    setCancelScheduledPostError("");
     setBillingSummary(null);
     setBillingStatus("idle");
     setBillingError("");
@@ -617,6 +659,114 @@ export function AppProvider({ children }) {
     }
   };
 
+  const refreshScheduledPosts = async ({ silent = false } = {}) => {
+    if (!token) {
+      setScheduledPosts([]);
+      setScheduledPostsStatus("idle");
+      setScheduledPostsError("");
+      return [];
+    }
+
+    if (!silent) {
+      setScheduledPostsStatus("loading");
+      setScheduledPostsError("");
+    }
+
+    try {
+      const response = await apiFetch(
+        "/scheduled-posts?status=scheduled&limit=20",
+        { method: "GET" },
+        token,
+      );
+      const nextPosts = Array.isArray(response) ? response : [];
+      setScheduledPosts(nextPosts);
+      setScheduledPostsStatus("success");
+      setScheduledPostsError("");
+      return nextPosts;
+    } catch (error) {
+      setScheduledPostsStatus("error");
+      setScheduledPostsError(error.message);
+      throw error;
+    }
+  };
+
+  const handleScheduleAsset = async (asset, scheduledForValue) => {
+    if (!token) {
+      setScheduleStatus("error");
+      setScheduleError("Log in before scheduling posts.");
+      return;
+    }
+
+    if (!asset) {
+      setScheduleStatus("error");
+      setScheduleError("Select an asset to schedule first.");
+      return;
+    }
+
+    const existingScheduledPost = scheduledPosts.find((post) => {
+      const metadataId = String(post?.payload?.metadata?.asset_id || "").trim();
+      const assetPayloadId = String(post?.payload?.asset?.id || "").trim();
+      return metadataId === asset.id || assetPayloadId === asset.id;
+    });
+    if (existingScheduledPost) {
+      setScheduleStatus("error");
+      setScheduleError("This asset is already scheduled.");
+      setScheduleResult({ assetId: asset.id, ...existingScheduledPost });
+      return;
+    }
+
+    const scheduleDate = new Date(scheduledForValue);
+    if (Number.isNaN(scheduleDate.getTime())) {
+      setScheduleStatus("error");
+      setScheduleError("Choose a valid date and time.");
+      setScheduleResult({ assetId: asset.id, error: "invalid_schedule_time" });
+      return;
+    }
+
+    setScheduleStatus("loading");
+    setScheduleError("");
+    setScheduleResult({ assetId: asset.id });
+
+    try {
+      const { platform, payload } = buildScheduledPostPayload(asset);
+      const response = await apiFetch(
+        "/scheduled-posts",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            platform,
+            payload,
+            scheduled_for: scheduleDate.toISOString(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+          }),
+        },
+        token,
+      );
+      setScheduleResult({ assetId: asset.id, ...response });
+      setScheduleStatus("success");
+      await refreshScheduledPosts({ silent: true });
+    } catch (error) {
+      setScheduleStatus("error");
+      setScheduleError(error.message);
+      setScheduleResult({ assetId: asset.id, error: error.message });
+    }
+  };
+
+  const handleCancelScheduledPost = async (postId) => {
+    if (!token || !postId) return;
+
+    setCancelScheduledPostId(postId);
+    setCancelScheduledPostError("");
+    try {
+      await apiFetch("/scheduled-posts/" + postId + "/cancel", { method: "POST" }, token);
+      setScheduledPosts((current) => current.filter((post) => post.id !== postId));
+    } catch (error) {
+      setCancelScheduledPostError(error.message);
+    } finally {
+      setCancelScheduledPostId(null);
+    }
+  };
+
   const refreshBilling = async () => {
     if (!token) return null;
 
@@ -721,6 +871,9 @@ export function AppProvider({ children }) {
       handleDeleteAsset,
       handlePublishLinkedInAsset,
       handlePublishInstagramAsset,
+      refreshScheduledPosts,
+      handleScheduleAsset,
+      handleCancelScheduledPost,
       handleExportWorkspace,
       setGenerateTranscript,
       setVideoInput,
@@ -732,6 +885,14 @@ export function AppProvider({ children }) {
       instagramPublishStatus,
       instagramPublishError,
       instagramPublishResult,
+      scheduledPosts,
+      scheduledPostsStatus,
+      scheduledPostsError,
+      scheduleStatus,
+      scheduleError,
+      scheduleResult,
+      cancelScheduledPostId,
+      cancelScheduledPostError,
       billingSummary,
       billingPlans,
       billingStatus,
@@ -795,6 +956,14 @@ export function AppProvider({ children }) {
       instagramPublishError,
       instagramPublishResult,
       instagramPublishStatus,
+      scheduledPosts,
+      scheduledPostsError,
+      scheduledPostsStatus,
+      scheduleError,
+      scheduleResult,
+      scheduleStatus,
+      cancelScheduledPostId,
+      cancelScheduledPostError,
       profileError,
       profileMode,
       profileStatus,

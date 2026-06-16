@@ -31,6 +31,16 @@ export default function WorkspaceRoute() {
         instagramPublishStatus={app.instagramPublishStatus}
         instagramPublishError={app.instagramPublishError}
         instagramPublishResult={app.instagramPublishResult}
+        onScheduleAsset={app.handleScheduleAsset}
+        scheduleStatus={app.scheduleStatus}
+        scheduleError={app.scheduleError}
+        scheduleResult={app.scheduleResult}
+        scheduledPosts={app.scheduledPosts}
+        scheduledPostsStatus={app.scheduledPostsStatus}
+        scheduledPostsError={app.scheduledPostsError}
+        onCancelScheduledPost={app.handleCancelScheduledPost}
+        cancelScheduledPostId={app.cancelScheduledPostId}
+        cancelScheduledPostError={app.cancelScheduledPostError}
         onExportWorkspace={app.handleExportWorkspace}
         saveStatus={app.workspaceSaveStatus}
         selectedAsset={app.selectedAsset}

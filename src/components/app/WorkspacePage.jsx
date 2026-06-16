@@ -10,12 +10,17 @@ import {
   buildAssetProgress,
   clampProgress,
   estimateRows,
+  findScheduledPostForAsset,
+  formatAssetLabel,
   formatElapsed,
+  formatScheduledPostTime,
   formatWorkspaceDate,
   getAssetStatusCopy,
+  getSchedulingPlatform,
   getRealLoaderProgress,
   getStageLabel,
   getWorkspaceSaveLabel,
+  isSchedulableAsset,
   isStructuredObject,
   serializeListToText,
   serializeStructuredItem,
@@ -200,6 +205,100 @@ function StatusLane({
           ) : null}
         </div>
       ) : null}
+    </section>
+  );
+}
+
+function formatDateTimeInputValue(date) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-") + "T" + pad(date.getHours()) + ":" + pad(date.getMinutes());
+}
+
+function getDefaultScheduleValue() {
+  const date = new Date(Date.now() + 60 * 60 * 1000);
+  const roundedMinutes = Math.ceil(date.getMinutes() / 5) * 5;
+  date.setMinutes(roundedMinutes, 0, 0);
+  return formatDateTimeInputValue(date);
+}
+
+function getScheduledPostSummary(post) {
+  if (post.platform === "linkedin") {
+    const text = String(post?.payload?.text || "").trim();
+    return text.length > 96 ? text.slice(0, 93).trim() + "..." : text || "LinkedIn post";
+  }
+
+  const asset = post?.payload?.asset || {};
+  const title = asset.title || asset.assetType || asset.asset_type || post.asset_type || (post.platform + " post");
+  return formatAssetLabel(String(title));
+}
+
+function getScheduledPlatformLabel(post) {
+  const platform = String(post?.platform || "post");
+  return platform.charAt(0).toUpperCase() + platform.slice(1);
+}
+
+function ScheduledPostsPanel({
+  posts,
+  status,
+  error,
+  onCancel,
+  cancelScheduledPostId,
+  cancelScheduledPostError,
+}) {
+  const orderedPosts = [...posts].sort(
+    (left, right) => new Date(left.scheduled_for).getTime() - new Date(right.scheduled_for).getTime(),
+  );
+
+  return (
+    <section className="scheduled-posts-panel">
+      <div className="scheduled-posts-top">
+        <div>
+          <p className="eyebrow">Publishing queue</p>
+          <h3>Scheduled posts</h3>
+          <p className="muted-copy">
+            Keep an eye on upcoming publishes and clear anything that should not go out.
+          </p>
+        </div>
+        {orderedPosts.length ? (
+          <span className="summary-tag">{orderedPosts.length} queued</span>
+        ) : null}
+      </div>
+
+      {status === "loading" ? (
+        <p className="muted-copy">Loading scheduled posts...</p>
+      ) : error ? (
+        <p className="error">{error}</p>
+      ) : orderedPosts.length ? (
+        <div className="scheduled-post-list">
+          {orderedPosts.map((post) => (
+            <div key={post.id} className="scheduled-post-row">
+              <div className="scheduled-post-main">
+                <span className="scheduled-post-platform">{getScheduledPlatformLabel(post)}</span>
+                <strong className="scheduled-post-title">{getScheduledPostSummary(post)}</strong>
+                <span className="scheduled-post-meta">
+                  {formatScheduledPostTime(post.scheduled_for)}
+                </span>
+              </div>
+              <button
+                className="ghost-button small"
+                onClick={() => onCancel(post.id)}
+                type="button"
+                disabled={cancelScheduledPostId === post.id}
+              >
+                {cancelScheduledPostId === post.id ? "Canceling..." : "Cancel"}
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="muted-copy">Nothing is scheduled yet.</p>
+      )}
+
+      {cancelScheduledPostError ? <p className="error">{cancelScheduledPostError}</p> : null}
     </section>
   );
 }
@@ -882,18 +981,39 @@ function AssetDocument({
   instagramPublishStatus,
   instagramPublishError,
   instagramPublishResult,
+  onScheduleAsset,
+  scheduleStatus,
+  scheduleError,
+  scheduleResult,
+  scheduledPosts,
 }) {
   const dirtyCount = asset.blocks.filter((block) => block.isDirty).length;
   const [carouselView, setCarouselView] = useState("preview");
+  const [scheduleValue, setScheduleValue] = useState(() => getDefaultScheduleValue());
+  const [showScheduler, setShowScheduler] = useState(false);
   const liveSlides = isCarouselAsset(asset) ? extractLiveSlides(asset.blocks) : null;
   const isLinkedInAsset = (asset.assetType || "").toLowerCase().includes("linkedin");
   const isInstagramAsset = (asset.assetType || "").toLowerCase().includes("instagram");
+  const schedulingPlatform = getSchedulingPlatform(asset);
+  const schedulingLabel = schedulingPlatform
+    ? schedulingPlatform.charAt(0).toUpperCase() + schedulingPlatform.slice(1)
+    : "Post";
   const isPublishing = linkedinPublishStatus === "loading";
   const isInstagramPublishing = instagramPublishStatus === "loading";
+  const isScheduling = scheduleStatus === "loading";
   const canPublishLinkedIn = isLinkedInAsset;
   const canPublishInstagram = isInstagramAsset;
+  const existingScheduledPost = findScheduledPostForAsset(asset, scheduledPosts);
+  const isAlreadyScheduled = Boolean(existingScheduledPost);
+  const canSchedule = isSchedulableAsset(asset);
   const publishMatchesAsset = linkedinPublishResult?.assetId === asset.id;
   const instagramPublishMatchesAsset = instagramPublishResult?.assetId === asset.id;
+  const scheduleMatchesAsset = scheduleResult?.assetId === asset.id;
+
+  useEffect(() => {
+    setScheduleValue(getDefaultScheduleValue());
+    setShowScheduler(false);
+  }, [asset.id]);
 
   return (
     <article className="asset-document">
@@ -939,6 +1059,20 @@ function AssetDocument({
           >
             Delete asset
           </button>
+          {canSchedule ? (
+            <button
+              className="ghost-button small"
+              onClick={() => setShowScheduler((current) => !current)}
+              type="button"
+              disabled={isAlreadyScheduled}
+            >
+              {isAlreadyScheduled
+                ? "Scheduled"
+                : showScheduler
+                  ? "Hide scheduler"
+                  : "Schedule " + schedulingLabel}
+            </button>
+          ) : null}
           {canPublishLinkedIn ? (
             <button
               className="primary-button small"
@@ -989,6 +1123,48 @@ function AssetDocument({
                 Publish this Instagram {String(asset.assetType || "").toLowerCase().includes("carousel") ? "carousel" : "reel"} directly to your connected account.
               </p>
             )}
+          </div>
+        ) : null}
+        {canSchedule ? (
+          <div className="asset-schedule-panel">
+            <div className="asset-schedule-heading">
+              <div>
+                <p className="content-label">Schedule publishing</p>
+                <p className="muted-copy">
+                  Choose when this {schedulingLabel.toLowerCase()} post should go live.
+                </p>
+              </div>
+              <span className="summary-tag">Local time</span>
+            </div>
+            {isAlreadyScheduled ? (
+              <p className="success">
+                Scheduled for {formatScheduledPostTime(existingScheduledPost?.scheduled_for)}.
+              </p>
+            ) : showScheduler ? (
+              <div className="asset-schedule-form">
+                <input
+                  className="schedule-input"
+                  type="datetime-local"
+                  value={scheduleValue}
+                  onChange={(event) => setScheduleValue(event.target.value)}
+                />
+                <button
+                  className="primary-button small"
+                  onClick={() => onScheduleAsset(asset, scheduleValue)}
+                  type="button"
+                  disabled={isScheduling || !scheduleValue}
+                >
+                  {isScheduling ? "Scheduling..." : "Schedule " + schedulingLabel}
+                </button>
+              </div>
+            ) : null}
+            {scheduleMatchesAsset && scheduleError ? (
+              <p className="error">{scheduleError}</p>
+            ) : scheduleMatchesAsset && scheduleStatus === "success" ? (
+              <p className="success">
+                Scheduled for {formatScheduledPostTime(scheduleResult?.scheduled_for)}.
+              </p>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -1175,6 +1351,16 @@ export default function WorkspacePage({
   instagramPublishStatus,
   instagramPublishError,
   instagramPublishResult,
+  onScheduleAsset,
+  scheduleStatus,
+  scheduleError,
+  scheduleResult,
+  scheduledPosts,
+  scheduledPostsStatus,
+  scheduledPostsError,
+  onCancelScheduledPost,
+  cancelScheduledPostId,
+  cancelScheduledPostError,
   onExportWorkspace,
   saveStatus,
   selectedAsset,
@@ -1192,6 +1378,16 @@ export default function WorkspacePage({
 
   return (
     <section className="results-section">
+      {scheduledPostsStatus !== "idle" || scheduledPosts.length ? (
+        <ScheduledPostsPanel
+          posts={scheduledPosts}
+          status={scheduledPostsStatus}
+          error={scheduledPostsError}
+          onCancel={onCancelScheduledPost}
+          cancelScheduledPostId={cancelScheduledPostId}
+          cancelScheduledPostError={cancelScheduledPostError}
+        />
+      ) : null}
       {assets.length ? (
         <>
           <div className="results-header workspace-results-header">
@@ -1261,6 +1457,11 @@ export default function WorkspacePage({
                 instagramPublishStatus={instagramPublishStatus}
                 instagramPublishError={instagramPublishError}
                 instagramPublishResult={instagramPublishResult}
+                onScheduleAsset={onScheduleAsset}
+                scheduleStatus={scheduleStatus}
+                scheduleError={scheduleError}
+                scheduleResult={scheduleResult}
+                scheduledPosts={scheduledPosts}
               />
             ) : (
               <div className="asset-document workspace-document-empty">
