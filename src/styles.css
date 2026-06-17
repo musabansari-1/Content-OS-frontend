@@ -5202,6 +5202,43 @@ textarea {
   gap: 12px;
 }
 
+.scheduled-posts-toggle {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.scheduled-posts-toggle-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.scheduled-posts-toggle-chevron {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(164, 180, 212, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+}
+
+.scheduled-posts-content {
+  margin-top: 18px;
+}
+
 .scheduled-posts-top h3 {
   margin: 6px 0 0;
   font-size: 1.2rem;

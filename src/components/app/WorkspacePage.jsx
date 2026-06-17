@@ -250,56 +250,72 @@ function ScheduledPostsPanel({
   cancelScheduledPostId,
   cancelScheduledPostError,
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const orderedPosts = [...posts].sort(
     (left, right) => new Date(left.scheduled_for).getTime() - new Date(right.scheduled_for).getTime(),
   );
 
   return (
-    <section className="scheduled-posts-panel">
+    <section className={`scheduled-posts-panel ${isExpanded ? "scheduled-posts-panel-expanded" : "scheduled-posts-panel-collapsed"}`}>
       <div className="scheduled-posts-top">
-        <div>
-          <p className="eyebrow">Publishing queue</p>
-          <h3>Scheduled posts</h3>
-          <p className="muted-copy">
-            Keep an eye on upcoming publishes and clear anything that should not go out.
-          </p>
-        </div>
-        {orderedPosts.length ? (
-          <span className="summary-tag">{orderedPosts.length} queued</span>
-        ) : null}
+        <button
+          className="scheduled-posts-toggle"
+          onClick={() => setIsExpanded((current) => !current)}
+          type="button"
+          aria-expanded={isExpanded}
+          aria-controls="scheduled-posts-content"
+        >
+          <div>
+            <p className="eyebrow">Publishing queue</p>
+            <h3>Scheduled posts</h3>
+            <p className="muted-copy">
+              Keep an eye on upcoming publishes and clear anything that should not go out.
+            </p>
+          </div>
+          <span className="scheduled-posts-toggle-meta">
+            {orderedPosts.length ? <span className="summary-tag">{orderedPosts.length} queued</span> : null}
+            <span className="scheduled-posts-toggle-chevron" aria-hidden="true">
+              {isExpanded ? "v" : ">"}
+            </span>
+          </span>
+        </button>
       </div>
 
-      {status === "loading" ? (
-        <p className="muted-copy">Loading scheduled posts...</p>
-      ) : error ? (
-        <p className="error">{error}</p>
-      ) : orderedPosts.length ? (
-        <div className="scheduled-post-list">
-          {orderedPosts.map((post) => (
-            <div key={post.id} className="scheduled-post-row">
-              <div className="scheduled-post-main">
-                <span className="scheduled-post-platform">{getScheduledPlatformLabel(post)}</span>
-                <strong className="scheduled-post-title">{getScheduledPostSummary(post)}</strong>
-                <span className="scheduled-post-meta">
-                  {formatScheduledPostTime(post.scheduled_for)}
-                </span>
-              </div>
-              <button
-                className="ghost-button small"
-                onClick={() => onCancel(post.id)}
-                type="button"
-                disabled={cancelScheduledPostId === post.id}
-              >
-                {cancelScheduledPostId === post.id ? "Canceling..." : "Cancel"}
-              </button>
+      {isExpanded ? (
+        <div className="scheduled-posts-content" id="scheduled-posts-content">
+          {status === "loading" ? (
+            <p className="muted-copy">Loading scheduled posts...</p>
+          ) : error ? (
+            <p className="error">{error}</p>
+          ) : orderedPosts.length ? (
+            <div className="scheduled-post-list">
+              {orderedPosts.map((post) => (
+                <div key={post.id} className="scheduled-post-row">
+                  <div className="scheduled-post-main">
+                    <span className="scheduled-post-platform">{getScheduledPlatformLabel(post)}</span>
+                    <strong className="scheduled-post-title">{getScheduledPostSummary(post)}</strong>
+                    <span className="scheduled-post-meta">
+                      {formatScheduledPostTime(post.scheduled_for)}
+                    </span>
+                  </div>
+                  <button
+                    className="ghost-button small"
+                    onClick={() => onCancel(post.id)}
+                    type="button"
+                    disabled={cancelScheduledPostId === post.id}
+                  >
+                    {cancelScheduledPostId === post.id ? "Canceling..." : "Cancel"}
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        <p className="muted-copy">Nothing is scheduled yet.</p>
-      )}
+          ) : (
+            <p className="muted-copy">Nothing is scheduled yet.</p>
+          )}
 
-      {cancelScheduledPostError ? <p className="error">{cancelScheduledPostError}</p> : null}
+          {cancelScheduledPostError ? <p className="error">{cancelScheduledPostError}</p> : null}
+        </div>
+      ) : null}
     </section>
   );
 }
