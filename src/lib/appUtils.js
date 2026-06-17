@@ -5,6 +5,7 @@ import {
   ASSET_STATUS_READY,
   AUTH_STORAGE_KEY,
   DEFAULT_ROUTE,
+  PLANNER_STORAGE_PREFIX,
   TEMP_UNAVAILABLE_ASSET_TYPES,
   WORKSPACE_STORAGE_PREFIX,
 } from "./appConstants";
@@ -25,6 +26,7 @@ export async function apiFetch(path, options = {}, token = "") {
 export function getRouteFromPathname(pathname = "") {
   const cleaned = pathname.replace(/^\/+/, "");
   if (cleaned === "workspace") return "workspace";
+  if (cleaned === "calendar") return "calendar";
   if (cleaned === "integrations") return "integrations";
   if (cleaned === "billing") return "billing";
   return DEFAULT_ROUTE;
@@ -122,7 +124,7 @@ export function buildAssetMedia(result) {
   };
 }
 
-export function buildWorkspaceAssets(results, sourceLabel) {
+export function buildWorkspaceAssets(results, sourceLabel, metadata = {}) {
   return results.map((result, index) => {
     const media = buildAssetMedia(result);
     const data = media ? {} : safeParse(result.output);
@@ -137,6 +139,7 @@ export function buildWorkspaceAssets(results, sourceLabel) {
       platformLabel: capitalize(result.platform || "generated"),
       assetType: result.asset_type || "generic",
       sourceLabel,
+      generationGroupId: metadata.generationGroupId || "",
       media,
       status: ASSET_STATUS_DRAFT,
       createdAt: now,
@@ -160,6 +163,166 @@ export function buildBlocksFromOutput(data) {
       : formatTextBlockValue(value),
     isDirty: false,
   }));
+}
+
+export function buildGenerationGroup({
+  id,
+  sourceLabel,
+  selectedAssets = [],
+  assetIds = [],
+  createdAt = new Date().toISOString(),
+}) {
+  return {
+    id,
+    title: getGenerationGroupTitle(sourceLabel),
+    sourceLabel,
+    assetTypes: selectedAssets,
+    assetIds,
+    createdAt,
+    updatedAt: createdAt,
+  };
+}
+
+export function normalizeGenerationGroups(assets = [], groups = []) {
+  const assetIds = new Set(assets.map((asset) => asset.id));
+  const normalizedGroups = groups
+    .map((group) => ({
+      ...group,
+      assetIds: Array.isArray(group.assetIds)
+        ? group.assetIds.filter((assetId) => assetIds.has(assetId))
+        : [],
+    }))
+    .filter((group) => group.id && group.assetIds.length);
+
+  const knownGroupIds = new Set(normalizedGroups.map((group) => group.id));
+  const missingGroupsById = new Map();
+
+  for (const asset of assets) {
+    if (!asset.generationGroupId || knownGroupIds.has(asset.generationGroupId)) {
+      continue;
+    }
+    const existing = missingGroupsById.get(asset.generationGroupId);
+    if (existing) {
+      existing.assetIds.push(asset.id);
+      continue;
+    }
+    missingGroupsById.set(
+      asset.generationGroupId,
+      buildGenerationGroup({
+        id: asset.generationGroupId,
+        sourceLabel: asset.sourceLabel || "Previous generation",
+        selectedAssets: [asset.assetType].filter(Boolean),
+        assetIds: [asset.id],
+        createdAt: asset.createdAt || new Date().toISOString(),
+      }),
+    );
+  }
+
+  const groupedAssetIds = new Set([
+    ...normalizedGroups.flatMap((group) => group.assetIds),
+    ...Array.from(missingGroupsById.values()).flatMap((group) => group.assetIds),
+  ]);
+  const ungroupedAssets = assets.filter((asset) => !groupedAssetIds.has(asset.id));
+
+  if (!ungroupedAssets.length) {
+    return {
+      assets,
+      groups: [...Array.from(missingGroupsById.values()), ...normalizedGroups],
+    };
+  }
+
+  const legacyGroupId = `generation-legacy-${generateLocalId()}`;
+  const legacyGroup = buildGenerationGroup({
+    id: legacyGroupId,
+    sourceLabel: "Previous workspace assets",
+    selectedAssets: Array.from(new Set(ungroupedAssets.map((asset) => asset.assetType).filter(Boolean))),
+    assetIds: ungroupedAssets.map((asset) => asset.id),
+    createdAt: ungroupedAssets[0]?.createdAt || new Date().toISOString(),
+  });
+
+  return {
+    assets: assets.map((asset) =>
+      groupedAssetIds.has(asset.id)
+        ? asset
+        : { ...asset, generationGroupId: legacyGroupId },
+    ),
+    groups: [legacyGroup, ...Array.from(missingGroupsById.values()), ...normalizedGroups],
+  };
+}
+
+export function getGenerationGroupTitle(sourceLabel = "") {
+  const cleaned = String(sourceLabel)
+    .replace(/^Generated from\s+/i, "")
+    .replace(/\s+for\s+\d+\s+selected asset types\.?$/i, "")
+    .trim();
+  if (!cleaned) return "Generation batch";
+  return truncateText(cleaned, 72);
+}
+
+export function getAssetDisplayName(asset = {}) {
+  const title = normalizeAssetTitle(asset.title || formatAssetLabel(asset.assetType || "Asset"));
+  const contentClue = getAssetContentClue(asset);
+  if (!contentClue) return title;
+  if (title.toLowerCase() === contentClue.toLowerCase()) return title;
+  return `${title} - ${contentClue}`;
+}
+
+export function getAssetPickerDescription(asset = {}, sourceLabel = "") {
+  const parts = [
+    asset.platformLabel,
+    asset.status,
+    sourceLabel ? `from ${sourceLabel}` : "",
+  ].filter(Boolean);
+  return parts.join(" - ");
+}
+
+function normalizeAssetTitle(value) {
+  const cleaned = formatAssetLabel(String(value || "Asset")).trim();
+  if (!cleaned) return "Asset";
+  const title = cleaned
+    .split(/\s+/)
+    .map((word) => (word.length <= 3 ? word : `${word.slice(0, 1).toUpperCase()}${word.slice(1)}`))
+    .join(" ");
+  return title
+    .replace(/\bLinkedin\b/g, "LinkedIn")
+    .replace(/\bYoutube\b/g, "YouTube")
+    .replace(/\bTiktok\b/g, "TikTok")
+    .replace(/\bSeo\b/g, "SEO")
+    .replace(/\bCta\b/g, "CTA");
+}
+
+function getAssetContentClue(asset = {}) {
+  if (asset.media?.label) return truncateText(cleanSnippet(asset.media.label), 64);
+
+  const preferredBlock =
+    asset.blocks?.find((block) =>
+      /hook|headline|title|caption|post|script|thread|summary/i.test(
+        `${block.key || ""} ${block.label || ""}`,
+      ),
+    ) || asset.blocks?.[0];
+
+  const snippet = cleanSnippet(extractBlockSnippet(preferredBlock));
+  return snippet ? truncateText(snippet, 64) : "";
+}
+
+function extractBlockSnippet(block) {
+  if (!block) return "";
+  const value = block.value;
+  if (Array.isArray(value)) {
+    const first = value.find((item) => {
+      if (isStructuredObject(item)) return serializeStructuredItem(item).trim();
+      return String(item ?? "").trim();
+    });
+    return isStructuredObject(first) ? serializeStructuredItem(first) : String(first ?? "");
+  }
+  return formatTextBlockValue(value);
+}
+
+function cleanSnippet(value) {
+  return String(value || "")
+    .replace(/[#*_`>{}\[\]"]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function formatTextBlockValue(value) {
@@ -247,6 +410,23 @@ export function writeWorkspace(user, payload) {
   localStorage.setItem(getWorkspaceStorageKey(user), JSON.stringify(payload));
 }
 
+export function getPlannerStorageKey(user) {
+  const identifier = user?.id || user?.email || "anonymous";
+  return `${PLANNER_STORAGE_PREFIX}:${identifier}`;
+}
+
+export function readPlanner(user) {
+  try {
+    return JSON.parse(localStorage.getItem(getPlannerStorageKey(user)) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+export function writePlanner(user, payload) {
+  localStorage.setItem(getPlannerStorageKey(user), JSON.stringify(payload));
+}
+
 export function serializeWorkspace(assets) {
   return assets.map(serializeAsset).join("\n\n");
 }
@@ -286,10 +466,27 @@ export function isTikTokAsset(asset) {
   return String(asset?.assetType || "").toLowerCase().includes("tiktok");
 }
 
+export function isGhostAsset(asset) {
+  const assetType = String(asset?.assetType || "").toLowerCase();
+  return assetType === "blog_post" || assetType === "newsletter";
+}
+
+export function formatPlatformName(platform = "") {
+  const normalized = String(platform || "").trim().toLowerCase();
+  const labels = {
+    linkedin: "LinkedIn",
+    instagram: "Instagram",
+    tiktok: "TikTok",
+    ghost: "Ghost",
+  };
+  return labels[normalized] || capitalize(normalized || "platform");
+}
+
 export function getSchedulingPlatform(asset) {
   if (isLinkedInAsset(asset)) return "linkedin";
   if (isInstagramAsset(asset)) return "instagram";
   if (isTikTokAsset(asset)) return "tiktok";
+  if (isGhostAsset(asset)) return "ghost";
   return "";
 }
 
@@ -312,7 +509,7 @@ export function buildScheduledPostPayload(asset) {
     return { platform, payload: { text, metadata } };
   }
 
-  if (platform === "instagram" || platform === "tiktok") {
+  if (platform === "instagram" || platform === "tiktok" || platform === "ghost") {
     return { platform, payload: { asset, metadata } };
   }
 

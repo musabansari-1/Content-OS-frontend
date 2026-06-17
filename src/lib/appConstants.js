@@ -3,6 +3,7 @@ export const API_BASE_URL =
 
 export const AUTH_STORAGE_KEY = "contentos-auth";
 export const WORKSPACE_STORAGE_PREFIX = "contentos-workspace-v2";
+export const PLANNER_STORAGE_PREFIX = "contentos-planner-v1";
 export const DEFAULT_ROUTE = "home";
 
 export const ASSET_STATUS_DRAFT = "draft";
@@ -49,6 +50,6 @@ export const STATUS_META = {
 };
 
 export const TEMP_UNAVAILABLE_ASSET_TYPES = [
-  "tiktok_clip",
-  "instagram_reel",
+  // "tiktok_clip",
+  // "instagram_reel",
 ];

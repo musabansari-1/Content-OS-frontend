@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { API_BASE_URL } from "../../lib/appConstants";
 import {
   apiFetch,
+  buildGenerationGroup,
   buildLinkedInPostText,
   buildGenerationSource,
   buildScheduledPostPayload,
@@ -11,15 +12,19 @@ import {
   buildWorkspaceAssets,
   clearAuthState,
   ensurePaddleJs,
+  getScheduledPostAssetId,
   isTemporarilyUnavailableAsset,
+  normalizeGenerationGroups,
   normalizeBlockValue,
   openPaddleCheckout,
   orderTargetAssets,
   parseLineItems,
   parseSampleBlocks,
   persistAuth,
+  readPlanner,
   readWorkspace,
   serializeWorkspace,
+  writePlanner,
   writeWorkspace,
 } from "../../lib/appUtils";
 
@@ -50,10 +55,14 @@ export function AppProvider({ children }) {
   const [unavailableMessage, setUnavailableMessage] = useState("");
 
   const [workspaceAssets, setWorkspaceAssets] = useState([]);
+  const [generationGroups, setGenerationGroups] = useState([]);
   const [workspaceSaveStatus, setWorkspaceSaveStatus] = useState("idle");
   const [activeAssetId, setActiveAssetId] = useState("");
   const [activeBlockId, setActiveBlockId] = useState("");
   const [workspaceLoaded, setWorkspaceLoaded] = useState(false);
+  const [campaignPlans, setCampaignPlans] = useState([]);
+  const [plannerSaveStatus, setPlannerSaveStatus] = useState("idle");
+  const [plannerLoaded, setPlannerLoaded] = useState(false);
   const pendingGenerationSourceRef = useRef("");
 
   const [profileMode, setProfileMode] = useState("samples");
@@ -69,12 +78,20 @@ export function AppProvider({ children }) {
   const [instagramPublishStatus, setInstagramPublishStatus] = useState("idle");
   const [instagramPublishError, setInstagramPublishError] = useState("");
   const [instagramPublishResult, setInstagramPublishResult] = useState(null);
+  const [ghostPublishStatus, setGhostPublishStatus] = useState("idle");
+  const [ghostPublishError, setGhostPublishError] = useState("");
+  const [ghostPublishResult, setGhostPublishResult] = useState(null);
+  const [connectedPlatformIds, setConnectedPlatformIds] = useState([]);
+  const [integrationStatus, setIntegrationStatus] = useState("idle");
   const [scheduledPosts, setScheduledPosts] = useState([]);
   const [scheduledPostsStatus, setScheduledPostsStatus] = useState("idle");
   const [scheduledPostsError, setScheduledPostsError] = useState("");
   const [scheduleStatus, setScheduleStatus] = useState("idle");
   const [scheduleError, setScheduleError] = useState("");
   const [scheduleResult, setScheduleResult] = useState(null);
+  const [rolloutScheduleStatus, setRolloutScheduleStatus] = useState("idle");
+  const [rolloutScheduleError, setRolloutScheduleError] = useState("");
+  const [rolloutScheduleResult, setRolloutScheduleResult] = useState(null);
   const [cancelScheduledPostId, setCancelScheduledPostId] = useState(null);
   const [cancelScheduledPostError, setCancelScheduledPostError] = useState("");
   const [billingSummary, setBillingSummary] = useState(null);
@@ -83,6 +100,67 @@ export function AppProvider({ children }) {
   const [billingError, setBillingError] = useState("");
   const [billingCheckoutStatus, setBillingCheckoutStatus] = useState("idle");
   const [billingCheckoutError, setBillingCheckoutError] = useState("");
+
+  const normalizeStoredRolloutPlans = (storedPlanner) => {
+    const rawPlans = Array.isArray(storedPlanner?.rollouts)
+      ? storedPlanner.rollouts
+      : Array.isArray(storedPlanner?.campaigns)
+        ? storedPlanner.campaigns
+        : [];
+
+    return rawPlans
+      .map((plan) => ({
+        id: String(plan?.id || "").trim(),
+        name: String(plan?.name || plan?.title || "").trim() || "Untitled rollout",
+        generationGroupId: String(plan?.generationGroupId || "").trim(),
+        cadence: String(plan?.cadence || "daily").trim() || "daily",
+        preferredTime: String(plan?.preferredTime || "10:00").trim() || "10:00",
+        startDate: String(plan?.startDate || "").trim(),
+        assetIds: Array.isArray(plan?.assetIds)
+          ? plan.assetIds.map((assetId) => String(assetId).trim()).filter(Boolean)
+          : [],
+        createdAt: plan?.createdAt || new Date().toISOString(),
+        updatedAt: plan?.updatedAt || plan?.createdAt || new Date().toISOString(),
+      }))
+      .filter((plan) => plan.id && plan.assetIds.length);
+  };
+
+  const refreshIntegrationStatus = async ({ accessToken = token } = {}) => {
+    if (!accessToken) {
+      setConnectedPlatformIds([]);
+      setIntegrationStatus("idle");
+      return [];
+    }
+
+    setIntegrationStatus("loading");
+    try {
+      const response = await apiFetch("/status", { method: "GET" }, accessToken);
+      const platforms = Array.isArray(response?.connected_platform_ids)
+        ? response.connected_platform_ids.map((platform) => String(platform).trim()).filter(Boolean)
+        : [];
+      setConnectedPlatformIds(platforms);
+      setIntegrationStatus("success");
+      return platforms;
+    } catch {
+      setIntegrationStatus("error");
+      return [];
+    }
+  };
+
+  const ensurePlatformConnected = (platform) => {
+    const normalizedPlatform = String(platform || "").trim().toLowerCase();
+    if (!normalizedPlatform || integrationStatus !== "success") return;
+    if (connectedPlatformIds.includes(normalizedPlatform)) return;
+
+    const platformLabel = {
+      linkedin: "LinkedIn",
+      instagram: "Instagram",
+      tiktok: "TikTok",
+      ghost: "Ghost",
+    }[normalizedPlatform] || normalizedPlatform;
+
+    throw new Error(`Connect ${platformLabel} in Integrations before scheduling this asset.`);
+  };
 
   useEffect(() => {
     try {
@@ -134,14 +212,22 @@ export function AppProvider({ children }) {
       setBillingSummary(null);
       setBillingStatus("idle");
       setBillingError("");
+      setConnectedPlatformIds([]);
+      setIntegrationStatus("idle");
       setScheduledPosts([]);
       setScheduledPostsStatus("idle");
       setScheduledPostsError("");
       setScheduleStatus("idle");
       setScheduleError("");
       setScheduleResult(null);
+      setRolloutScheduleStatus("idle");
+      setRolloutScheduleError("");
+      setRolloutScheduleResult(null);
       setCancelScheduledPostId(null);
       setCancelScheduledPostError("");
+      setCampaignPlans([]);
+      setPlannerSaveStatus("idle");
+      setPlannerLoaded(false);
       return;
     }
 
@@ -165,6 +251,7 @@ export function AppProvider({ children }) {
         } catch (error) {
           if (!cancelled && error.status !== 404) setProfileError(error.message);
         }
+        await refreshIntegrationStatus({ accessToken: token });
         try {
           const scheduled = await apiFetch(
             "/scheduled-posts?status=scheduled&limit=20",
@@ -204,15 +291,36 @@ export function AppProvider({ children }) {
     if (!user) return;
     const storedWorkspace = readWorkspace(user);
     if (Array.isArray(storedWorkspace.assets) && storedWorkspace.assets.length) {
-      setWorkspaceAssets(storedWorkspace.assets);
-      setActiveAssetId(storedWorkspace.assets[0].id);
+      const normalizedWorkspace = normalizeGenerationGroups(
+        storedWorkspace.assets,
+        storedWorkspace.generationGroups || [],
+      );
+      setWorkspaceAssets(normalizedWorkspace.assets);
+      setGenerationGroups(normalizedWorkspace.groups);
+      setActiveAssetId(normalizedWorkspace.assets[0].id);
       setWorkspaceSaveStatus("saved");
       setWorkspaceLoaded(true);
       return;
     }
     setWorkspaceAssets([]);
+    setGenerationGroups([]);
     setWorkspaceSaveStatus("idle");
     setWorkspaceLoaded(true);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const storedPlanner = readPlanner(user);
+    const normalizedPlans = normalizeStoredRolloutPlans(storedPlanner);
+    if (normalizedPlans.length) {
+      setCampaignPlans(normalizedPlans);
+      setPlannerSaveStatus("saved");
+      setPlannerLoaded(true);
+      return;
+    }
+    setCampaignPlans([]);
+    setPlannerSaveStatus("idle");
+    setPlannerLoaded(true);
   }, [user]);
 
   useEffect(() => {
@@ -221,13 +329,28 @@ export function AppProvider({ children }) {
     const timeoutId = window.setTimeout(() => {
       writeWorkspace(user, {
         assets: workspaceAssets,
+        generationGroups,
         savedAt: new Date().toISOString(),
       });
       setWorkspaceSaveStatus("saved");
     }, 450);
 
     return () => window.clearTimeout(timeoutId);
-  }, [user, workspaceAssets, workspaceLoaded]);
+  }, [generationGroups, user, workspaceAssets, workspaceLoaded]);
+
+  useEffect(() => {
+    if (!user || !plannerLoaded) return undefined;
+    setPlannerSaveStatus("saving");
+    const timeoutId = window.setTimeout(() => {
+      writePlanner(user, {
+        rollouts: campaignPlans,
+        savedAt: new Date().toISOString(),
+      });
+      setPlannerSaveStatus("saved");
+    }, 450);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [campaignPlans, plannerLoaded, user]);
 
   useEffect(() => {
     if (!token || generateStatus !== "loading" || !generateJob?.id) {
@@ -261,7 +384,18 @@ export function AppProvider({ children }) {
                 generateTranscript,
                 selectedAssets,
               });
-            const newAssets = buildWorkspaceAssets(generatedResults, source);
+            const generationGroupId = `generation-${generateJob.id || Date.now().toString(36)}`;
+            const newAssets = buildWorkspaceAssets(generatedResults, source, {
+              generationGroupId,
+            });
+            const nextGenerationGroup = buildGenerationGroup({
+              id: generationGroupId,
+              sourceLabel: source,
+              selectedAssets,
+              assetIds: newAssets.map((asset) => asset.id),
+              createdAt: new Date().toISOString(),
+            });
+            setGenerationGroups((current) => [nextGenerationGroup, ...current]);
             setWorkspaceAssets((current) => [...newAssets, ...current]);
             setActiveAssetId(newAssets[0]?.id || "");
             setActiveBlockId("");
@@ -372,6 +506,9 @@ export function AppProvider({ children }) {
     setScheduleStatus("idle");
     setScheduleError("");
     setScheduleResult(null);
+    setRolloutScheduleStatus("idle");
+    setRolloutScheduleError("");
+    setRolloutScheduleResult(null);
     setCancelScheduledPostId(null);
     setCancelScheduledPostError("");
     setBillingSummary(null);
@@ -381,6 +518,10 @@ export function AppProvider({ children }) {
     setBillingCheckoutError("");
     setGenerateError("");
     setWorkspaceAssets([]);
+    setGenerationGroups([]);
+    setCampaignPlans([]);
+    setPlannerSaveStatus("idle");
+    setPlannerLoaded(false);
     setVoiceProfile(null);
     setUploadedVideo(null);
     pendingGenerationSourceRef.current = "";
@@ -588,10 +729,78 @@ export function AppProvider({ children }) {
     setWorkspaceAssets((current) =>
       current.filter((asset) => asset.id !== assetId),
     );
+    setGenerationGroups((current) =>
+      current
+        .map((group) => ({
+          ...group,
+          assetIds: group.assetIds.filter((id) => id !== assetId),
+          updatedAt: new Date().toISOString(),
+        }))
+        .filter((group) => group.assetIds.length),
+    );
+    setCampaignPlans((current) =>
+      current.map((campaign) => ({
+        ...campaign,
+        assetIds: campaign.assetIds.filter((id) => id !== assetId),
+        updatedAt: new Date().toISOString(),
+      })),
+    );
     if (activeAssetId === assetId) {
       setActiveAssetId("");
       setActiveBlockId("");
     }
+  };
+
+  const handleCreateCampaign = (input) => {
+    const name = String(input?.name || "").trim();
+    if (!name) {
+      throw new Error("Campaign name is required.");
+    }
+
+    const now = new Date().toISOString();
+    const nextCampaign = {
+      id: `campaign-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      name,
+      objective: String(input?.objective || "").trim(),
+      focusPlatform: String(input?.focusPlatform || "multi").trim() || "multi",
+      weeklyGoal: Math.max(1, Math.min(14, Number(input?.weeklyGoal) || 3)),
+      startDate: String(input?.startDate || "").trim(),
+      endDate: String(input?.endDate || "").trim(),
+      notes: String(input?.notes || "").trim(),
+      assetIds: Array.isArray(input?.assetIds)
+        ? input.assetIds.map((assetId) => String(assetId).trim()).filter(Boolean)
+        : [],
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    setCampaignPlans((current) => [nextCampaign, ...current]);
+    return nextCampaign;
+  };
+
+  const handleDeleteCampaign = (campaignId) => {
+    setCampaignPlans((current) =>
+      current.filter((campaign) => campaign.id !== campaignId),
+    );
+  };
+
+  const handleToggleCampaignAsset = (campaignId, assetId) => {
+    const normalizedAssetId = String(assetId || "").trim();
+    if (!normalizedAssetId) return;
+
+    setCampaignPlans((current) =>
+      current.map((campaign) => {
+        if (campaign.id !== campaignId) return campaign;
+        const exists = campaign.assetIds.includes(normalizedAssetId);
+        return {
+          ...campaign,
+          assetIds: exists
+            ? campaign.assetIds.filter((id) => id !== normalizedAssetId)
+            : [...campaign.assetIds, normalizedAssetId],
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    );
   };
 
   const handlePublishLinkedInAsset = async (asset) => {
@@ -659,6 +868,37 @@ export function AppProvider({ children }) {
     }
   };
 
+  const handlePublishGhostAsset = async (asset) => {
+    if (!asset) {
+      setGhostPublishError("Select a Ghost-ready asset first.");
+      return;
+    }
+
+    const assetType = String(asset.assetType || "").toLowerCase();
+    if (!["blog_post", "newsletter"].includes(assetType)) {
+      setGhostPublishError("Only blog posts and newsletters can be published to Ghost.");
+      return;
+    }
+
+    setGhostPublishStatus("loading");
+    setGhostPublishError("");
+    setGhostPublishResult(null);
+
+    try {
+      const response = await apiFetch(
+        "/ghost/publish",
+        { method: "POST", body: JSON.stringify({ asset }) },
+        token,
+      );
+      setGhostPublishResult({ assetId: asset.id, ...response });
+      setGhostPublishStatus("success");
+    } catch (error) {
+      setGhostPublishStatus("error");
+      setGhostPublishError(error.message);
+      setGhostPublishResult({ assetId: asset.id, error: error.message });
+    }
+  };
+
   const refreshScheduledPosts = async ({ silent = false } = {}) => {
     if (!token) {
       setScheduledPosts([]);
@@ -690,58 +930,51 @@ export function AppProvider({ children }) {
     }
   };
 
-  const handleScheduleAsset = async (asset, scheduledForValue) => {
+  const scheduleAssetRequest = async (asset, scheduledForValue) => {
     if (!token) {
-      setScheduleStatus("error");
-      setScheduleError("Log in before scheduling posts.");
-      return;
+      throw new Error("Log in before scheduling posts.");
     }
 
     if (!asset) {
-      setScheduleStatus("error");
-      setScheduleError("Select an asset to schedule first.");
-      return;
+      throw new Error("Select an asset to schedule first.");
     }
 
-    const existingScheduledPost = scheduledPosts.find((post) => {
-      const metadataId = String(post?.payload?.metadata?.asset_id || "").trim();
-      const assetPayloadId = String(post?.payload?.asset?.id || "").trim();
-      return metadataId === asset.id || assetPayloadId === asset.id;
-    });
+    const existingScheduledPost = scheduledPosts.find(
+      (post) => getScheduledPostAssetId(post) === String(asset.id || "").trim(),
+    );
     if (existingScheduledPost) {
-      setScheduleStatus("error");
-      setScheduleError("This asset is already scheduled.");
-      setScheduleResult({ assetId: asset.id, ...existingScheduledPost });
-      return;
+      throw new Error("This asset is already scheduled.");
     }
 
     const scheduleDate = new Date(scheduledForValue);
     if (Number.isNaN(scheduleDate.getTime())) {
-      setScheduleStatus("error");
-      setScheduleError("Choose a valid date and time.");
-      setScheduleResult({ assetId: asset.id, error: "invalid_schedule_time" });
-      return;
+      throw new Error("Choose a valid date and time.");
     }
 
+    const { platform, payload } = buildScheduledPostPayload(asset);
+    ensurePlatformConnected(platform);
+    return apiFetch(
+      "/scheduled-posts",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          platform,
+          payload,
+          scheduled_for: scheduleDate.toISOString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        }),
+      },
+      token,
+    );
+  };
+
+  const handleScheduleAsset = async (asset, scheduledForValue) => {
     setScheduleStatus("loading");
     setScheduleError("");
     setScheduleResult({ assetId: asset.id });
 
     try {
-      const { platform, payload } = buildScheduledPostPayload(asset);
-      const response = await apiFetch(
-        "/scheduled-posts",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            platform,
-            payload,
-            scheduled_for: scheduleDate.toISOString(),
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-          }),
-        },
-        token,
-      );
+      const response = await scheduleAssetRequest(asset, scheduledForValue);
       setScheduleResult({ assetId: asset.id, ...response });
       setScheduleStatus("success");
       await refreshScheduledPosts({ silent: true });
@@ -750,6 +983,121 @@ export function AppProvider({ children }) {
       setScheduleError(error.message);
       setScheduleResult({ assetId: asset.id, error: error.message });
     }
+  };
+
+  const saveRolloutPlan = (input) => {
+    const name = String(input?.name || "").trim();
+    const generationGroupId = String(input?.generationGroupId || "").trim();
+    const assetIds = Array.isArray(input?.assetIds)
+      ? input.assetIds.map((assetId) => String(assetId).trim()).filter(Boolean)
+      : [];
+    if (!name) {
+      throw new Error("Add a rollout name.");
+    }
+    if (!generationGroupId) {
+      throw new Error("Choose a generation batch first.");
+    }
+    if (!assetIds.length) {
+      throw new Error("Select at least one asset for this rollout.");
+    }
+
+    const now = new Date().toISOString();
+    const nextPlan = {
+      id: String(input?.id || "").trim() || `rollout-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      name,
+      generationGroupId,
+      cadence: String(input?.cadence || "daily").trim() || "daily",
+      preferredTime: String(input?.preferredTime || "10:00").trim() || "10:00",
+      startDate: String(input?.startDate || "").trim(),
+      assetIds,
+      createdAt: input?.createdAt || now,
+      updatedAt: now,
+    };
+
+    setCampaignPlans((current) => {
+      const existingIndex = current.findIndex((plan) => plan.id === nextPlan.id);
+      if (existingIndex === -1) return [nextPlan, ...current];
+      const next = [...current];
+      next[existingIndex] = { ...current[existingIndex], ...nextPlan };
+      return next;
+    });
+
+    return nextPlan;
+  };
+
+  const handleCreateRolloutPlan = (input) => saveRolloutPlan(input);
+
+  const handleDeleteRolloutPlan = (rolloutId) => {
+    setCampaignPlans((current) =>
+      current.filter((plan) => plan.id !== rolloutId),
+    );
+  };
+
+  const handleScheduleRolloutPlan = async ({ rollout, entries }) => {
+    const rolloutEntries = Array.isArray(entries) ? entries : [];
+    if (!rolloutEntries.length) {
+      setRolloutScheduleStatus("error");
+      setRolloutScheduleError("There are no schedulable assets in this rollout.");
+      setRolloutScheduleResult(null);
+      return null;
+    }
+
+    let savedRollout;
+    try {
+      savedRollout = saveRolloutPlan(rollout);
+    } catch (error) {
+      setRolloutScheduleStatus("error");
+      setRolloutScheduleError(error.message);
+      setRolloutScheduleResult(null);
+      return null;
+    }
+
+    setRolloutScheduleStatus("loading");
+    setRolloutScheduleError("");
+    setRolloutScheduleResult(null);
+
+    const successes = [];
+    const failures = [];
+
+    for (const entry of rolloutEntries) {
+      try {
+        const response = await scheduleAssetRequest(entry.asset, entry.scheduledFor);
+        successes.push({
+          assetId: entry.asset.id,
+          assetTitle: entry.asset.title,
+          scheduledFor: entry.scheduledFor,
+          response,
+        });
+      } catch (error) {
+        failures.push({
+          assetId: entry.asset.id,
+          assetTitle: entry.asset.title,
+          scheduledFor: entry.scheduledFor,
+          error: error.message,
+        });
+      }
+    }
+
+    await refreshScheduledPosts({ silent: true });
+
+    const result = {
+      rolloutId: savedRollout.id,
+      successes,
+      failures,
+    };
+
+    setRolloutScheduleResult(result);
+    if (successes.length && failures.length) {
+      setRolloutScheduleStatus("partial");
+      setRolloutScheduleError(`${failures.length} asset${failures.length === 1 ? "" : "s"} could not be scheduled.`);
+    } else if (successes.length) {
+      setRolloutScheduleStatus("success");
+    } else {
+      setRolloutScheduleStatus("error");
+      setRolloutScheduleError(failures[0]?.error || "Scheduling failed.");
+    }
+
+    return result;
   };
 
   const handleCancelScheduledPost = async (postId) => {
@@ -856,7 +1204,10 @@ export function AppProvider({ children }) {
       selectedAssets,
       unavailableMessage,
       workspaceAssets,
+      generationGroups,
       workspaceSaveStatus,
+      rolloutPlans: campaignPlans,
+      plannerSaveStatus,
       activeAssetId,
       activeBlockId,
       selectedAsset,
@@ -869,8 +1220,18 @@ export function AppProvider({ children }) {
       handleAssetStatusChange,
       handleRevertBlock,
       handleDeleteAsset,
+      handleCreateRolloutPlan,
+      handleDeleteRolloutPlan,
+      handleScheduleRolloutPlan,
+      handleCreateCampaign,
+      handleDeleteCampaign,
+      handleToggleCampaignAsset,
       handlePublishLinkedInAsset,
       handlePublishInstagramAsset,
+      handlePublishGhostAsset,
+      connectedPlatformIds,
+      integrationStatus,
+      refreshIntegrationStatus,
       refreshScheduledPosts,
       handleScheduleAsset,
       handleCancelScheduledPost,
@@ -885,12 +1246,20 @@ export function AppProvider({ children }) {
       instagramPublishStatus,
       instagramPublishError,
       instagramPublishResult,
+      ghostPublishStatus,
+      ghostPublishError,
+      ghostPublishResult,
+      connectedPlatformIds,
+      integrationStatus,
       scheduledPosts,
       scheduledPostsStatus,
       scheduledPostsError,
       scheduleStatus,
       scheduleError,
       scheduleResult,
+      rolloutScheduleStatus,
+      rolloutScheduleError,
+      rolloutScheduleResult,
       cancelScheduledPostId,
       cancelScheduledPostError,
       billingSummary,
@@ -956,6 +1325,11 @@ export function AppProvider({ children }) {
       instagramPublishError,
       instagramPublishResult,
       instagramPublishStatus,
+      ghostPublishError,
+      ghostPublishResult,
+      ghostPublishStatus,
+      connectedPlatformIds,
+      integrationStatus,
       scheduledPosts,
       scheduledPostsError,
       scheduledPostsStatus,
@@ -978,7 +1352,14 @@ export function AppProvider({ children }) {
       videoInput,
       voiceProfile,
       workspaceAssets,
+      generationGroups,
       workspaceSaveStatus,
+      campaignPlans,
+      plannerSaveStatus,
+      refreshIntegrationStatus,
+      rolloutScheduleError,
+      rolloutScheduleResult,
+      rolloutScheduleStatus,
       youtubeText,
       youtubeTranscriptText,
     ],

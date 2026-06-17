@@ -488,6 +488,12 @@ export default function AppFrame({ route, children }) {
               Workspace
             </Link>
             <Link
+              className={`nav-btn ${route === "calendar" ? "active" : ""}`}
+              href="/calendar"
+            >
+              Calendar
+            </Link>
+            <Link
               className={`nav-btn ${route === "integrations" ? "active" : ""}`}
               href="/integrations"
             >
