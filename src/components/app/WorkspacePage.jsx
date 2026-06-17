@@ -13,6 +13,7 @@ import {
   findScheduledPostForAsset,
   formatAssetLabel,
   formatElapsed,
+  formatPlatformName,
   formatScheduledPostTime,
   formatWorkspaceDate,
   getAssetStatusCopy,
@@ -299,6 +300,57 @@ function ScheduledPostsPanel({
       )}
 
       {cancelScheduledPostError ? <p className="error">{cancelScheduledPostError}</p> : null}
+    </section>
+  );
+}
+
+function GenerationGroupsPanel({
+  groups,
+  assets,
+  activeAssetId,
+  onSelectAsset,
+}) {
+  const assetsById = new Map(assets.map((asset) => [asset.id, asset]));
+  const visibleGroups = groups
+    .map((group) => ({
+      ...group,
+      assets: group.assetIds.map((assetId) => assetsById.get(assetId)).filter(Boolean),
+    }))
+    .filter((group) => group.assets.length);
+
+  if (!visibleGroups.length) return null;
+
+  return (
+    <section className="generation-groups-panel">
+      <div className="generation-groups-top">
+        <div>
+          <p className="eyebrow">Generation batches</p>
+          <h3>Grouped by creation run</h3>
+        </div>
+        <span className="summary-tag">{visibleGroups.length}</span>
+      </div>
+
+      <div className="generation-group-list">
+        {visibleGroups.map((group) => {
+          const firstAsset = group.assets[0];
+          const isActive = group.assets.some((asset) => asset.id === activeAssetId);
+
+          return (
+            <button
+              key={group.id}
+              className={`generation-group-card ${isActive ? "active" : ""}`}
+              onClick={() => onSelectAsset(firstAsset.id)}
+              type="button"
+            >
+              <span className="generation-group-title">{group.title}</span>
+              <span className="generation-group-meta">
+                {group.assets.length} asset{group.assets.length === 1 ? "" : "s"} -{" "}
+                {formatWorkspaceDate(group.createdAt)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </section>
   );
 }
@@ -981,11 +1033,18 @@ function AssetDocument({
   instagramPublishStatus,
   instagramPublishError,
   instagramPublishResult,
+  onPublishGhost,
+  ghostPublishStatus,
+  ghostPublishError,
+  ghostPublishResult,
+  connectedPlatformIds = [],
+  integrationStatus = "idle",
   onScheduleAsset,
   scheduleStatus,
   scheduleError,
   scheduleResult,
   scheduledPosts,
+  onGoToIntegrations,
 }) {
   const dirtyCount = asset.blocks.filter((block) => block.isDirty).length;
   const [carouselView, setCarouselView] = useState("preview");
@@ -994,20 +1053,31 @@ function AssetDocument({
   const liveSlides = isCarouselAsset(asset) ? extractLiveSlides(asset.blocks) : null;
   const isLinkedInAsset = (asset.assetType || "").toLowerCase().includes("linkedin");
   const isInstagramAsset = (asset.assetType || "").toLowerCase().includes("instagram");
+  const isGhostAsset = ["blog_post", "newsletter"].includes((asset.assetType || "").toLowerCase());
   const schedulingPlatform = getSchedulingPlatform(asset);
   const schedulingLabel = schedulingPlatform
     ? schedulingPlatform.charAt(0).toUpperCase() + schedulingPlatform.slice(1)
     : "Post";
   const isPublishing = linkedinPublishStatus === "loading";
   const isInstagramPublishing = instagramPublishStatus === "loading";
+  const isGhostPublishing = ghostPublishStatus === "loading";
   const isScheduling = scheduleStatus === "loading";
   const canPublishLinkedIn = isLinkedInAsset;
   const canPublishInstagram = isInstagramAsset;
+  const canPublishGhost = isGhostAsset;
   const existingScheduledPost = findScheduledPostForAsset(asset, scheduledPosts);
   const isAlreadyScheduled = Boolean(existingScheduledPost);
   const canSchedule = isSchedulableAsset(asset);
+  const isSchedulingConnected =
+    !schedulingPlatform ||
+    integrationStatus !== "success" ||
+    connectedPlatformIds.includes(schedulingPlatform);
+  const scheduleConnectionMessage = schedulingPlatform
+    ? `Connect ${formatPlatformName(schedulingPlatform)} in Integrations before scheduling this asset.`
+    : "";
   const publishMatchesAsset = linkedinPublishResult?.assetId === asset.id;
   const instagramPublishMatchesAsset = instagramPublishResult?.assetId === asset.id;
+  const ghostPublishMatchesAsset = ghostPublishResult?.assetId === asset.id;
   const scheduleMatchesAsset = scheduleResult?.assetId === asset.id;
 
   useEffect(() => {
@@ -1060,17 +1130,19 @@ function AssetDocument({
             Delete asset
           </button>
           {canSchedule ? (
-            <button
-              className="ghost-button small"
-              onClick={() => setShowScheduler((current) => !current)}
-              type="button"
-              disabled={isAlreadyScheduled}
-            >
-              {isAlreadyScheduled
-                ? "Scheduled"
-                : showScheduler
-                  ? "Hide scheduler"
-                  : "Schedule " + schedulingLabel}
+          <button
+            className="ghost-button small"
+            onClick={() => setShowScheduler((current) => !current)}
+            type="button"
+            disabled={isAlreadyScheduled || !isSchedulingConnected}
+          >
+            {isAlreadyScheduled
+              ? "Scheduled"
+              : !isSchedulingConnected
+                ? `Connect ${formatPlatformName(schedulingPlatform)}`
+              : showScheduler
+                ? "Hide scheduler"
+                : "Schedule " + schedulingLabel}
             </button>
           ) : null}
           {canPublishLinkedIn ? (
@@ -1091,6 +1163,16 @@ function AssetDocument({
               disabled={isInstagramPublishing}
             >
               {isInstagramPublishing ? "Publishing..." : "Publish to Instagram"}
+            </button>
+          ) : null}
+          {canPublishGhost ? (
+            <button
+              className="primary-button small"
+              onClick={() => onPublishGhost(asset)}
+              type="button"
+              disabled={isGhostPublishing}
+            >
+              {isGhostPublishing ? "Publishing..." : "Publish to Ghost"}
             </button>
           ) : null}
         </div>
@@ -1125,6 +1207,29 @@ function AssetDocument({
             )}
           </div>
         ) : null}
+        {canPublishGhost ? (
+          <div className="asset-publish-status">
+            {ghostPublishMatchesAsset && ghostPublishError ? (
+              <p className="error">{ghostPublishError}</p>
+            ) : ghostPublishMatchesAsset && ghostPublishStatus === "success" ? (
+              <p className="success">
+                Ghost post published
+                {ghostPublishResult?.ghost_post_url ? (
+                  <>
+                    {" "}
+                    <a href={ghostPublishResult.ghost_post_url} target="_blank" rel="noreferrer">
+                      View post
+                    </a>
+                  </>
+                ) : ghostPublishResult?.ghost_post_id ? ` (${ghostPublishResult.ghost_post_id})` : ""}.
+              </p>
+            ) : (
+              <p className="muted-copy">
+                Publish this {String(asset.assetType || "").toLowerCase() === "newsletter" ? "newsletter issue" : "blog post"} directly to your connected Ghost site.
+              </p>
+            )}
+          </div>
+        ) : null}
         {canSchedule ? (
           <div className="asset-schedule-panel">
             <div className="asset-schedule-heading">
@@ -1140,6 +1245,13 @@ function AssetDocument({
               <p className="success">
                 Scheduled for {formatScheduledPostTime(existingScheduledPost?.scheduled_for)}.
               </p>
+            ) : !isSchedulingConnected ? (
+              <div className="asset-publish-status">
+                <p className="error">{scheduleConnectionMessage}</p>
+                <button className="ghost-button small" onClick={onGoToIntegrations} type="button">
+                  Open integrations
+                </button>
+              </div>
             ) : showScheduler ? (
               <div className="asset-schedule-form">
                 <input
@@ -1333,6 +1445,7 @@ export function GenerationLoader({ job, selectedAssets, targetAssets }) {
 
 export default function WorkspacePage({
   assets,
+  generationGroups = [],
   activeAssetId,
   activeBlockId,
   onSelectAsset,
@@ -1351,6 +1464,12 @@ export default function WorkspacePage({
   instagramPublishStatus,
   instagramPublishError,
   instagramPublishResult,
+  onPublishGhost,
+  ghostPublishStatus,
+  ghostPublishError,
+  ghostPublishResult,
+  connectedPlatformIds,
+  integrationStatus,
   onScheduleAsset,
   scheduleStatus,
   scheduleError,
@@ -1365,6 +1484,7 @@ export default function WorkspacePage({
   saveStatus,
   selectedAsset,
   lastGeneratedCount,
+  onGoToIntegrations,
   onGoToMain,
 }) {
   const [collapsedLanes, setCollapsedLanes] = useState({ published: true });
@@ -1425,6 +1545,12 @@ export default function WorkspacePage({
               <div className="workspace-sidebar-hint">
                 <span>Drag cards to change status</span>
               </div>
+              <GenerationGroupsPanel
+                groups={generationGroups}
+                assets={assets}
+                activeAssetId={activeAssetId}
+                onSelectAsset={onSelectAsset}
+              />
               {STATUS_CYCLE.map((status) => (
                 <StatusLane
                   key={status}
@@ -1457,11 +1583,18 @@ export default function WorkspacePage({
                 instagramPublishStatus={instagramPublishStatus}
                 instagramPublishError={instagramPublishError}
                 instagramPublishResult={instagramPublishResult}
+                onPublishGhost={onPublishGhost}
+                ghostPublishStatus={ghostPublishStatus}
+                ghostPublishError={ghostPublishError}
+                ghostPublishResult={ghostPublishResult}
+                connectedPlatformIds={connectedPlatformIds}
+                integrationStatus={integrationStatus}
                 onScheduleAsset={onScheduleAsset}
                 scheduleStatus={scheduleStatus}
                 scheduleError={scheduleError}
                 scheduleResult={scheduleResult}
                 scheduledPosts={scheduledPosts}
+                onGoToIntegrations={onGoToIntegrations}
               />
             ) : (
               <div className="asset-document workspace-document-empty">

@@ -13,6 +13,7 @@ export default function WorkspaceRoute() {
     <AppFrame route="workspace">
       <WorkspacePage
         assets={app.workspaceAssets}
+        generationGroups={app.generationGroups}
         activeAssetId={app.activeAssetId}
         activeBlockId={app.activeBlockId}
         onSelectAsset={app.setActiveAssetId}
@@ -31,6 +32,12 @@ export default function WorkspaceRoute() {
         instagramPublishStatus={app.instagramPublishStatus}
         instagramPublishError={app.instagramPublishError}
         instagramPublishResult={app.instagramPublishResult}
+        onPublishGhost={app.handlePublishGhostAsset}
+        ghostPublishStatus={app.ghostPublishStatus}
+        ghostPublishError={app.ghostPublishError}
+        ghostPublishResult={app.ghostPublishResult}
+        connectedPlatformIds={app.connectedPlatformIds}
+        integrationStatus={app.integrationStatus}
         onScheduleAsset={app.handleScheduleAsset}
         scheduleStatus={app.scheduleStatus}
         scheduleError={app.scheduleError}
@@ -45,6 +52,7 @@ export default function WorkspaceRoute() {
         saveStatus={app.workspaceSaveStatus}
         selectedAsset={app.selectedAsset}
         lastGeneratedCount={app.lastGeneratedCount}
+        onGoToIntegrations={() => router.push("/integrations")}
         onGoToMain={() => router.push("/")}
       />
     </AppFrame>
