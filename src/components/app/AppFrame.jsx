@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef } from "react";
 import { GenerationLoader } from "./WorkspacePage";
 import { useAppState } from "./AppProvider";
+import { APP_NAME } from "../../lib/appConstants";
 
 function AuthCard({ authSectionRef }) {
   const {
@@ -118,15 +119,15 @@ function AuthScreen() {
         <header className="landing-topbar">
           <div className="flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-[#d8a36f] to-[#8fb8b2] font-bold text-[#111820] shadow-lg shadow-[#d8a36f]/20">
-              CO
+              CB
             </div>
 
             <div className="flex flex-col">
               <span className="text-base font-semibold tracking-tight">
-                ContentOS
+                {APP_NAME}
               </span>
               <span className="text-xs text-[#b9aca0]">
-                AI content operating system
+                AI content studio
               </span>
             </div>
           </div>
@@ -166,7 +167,7 @@ function AuthScreen() {
               </h1>
 
               <p className="mt-6 max-w-2xl text-base leading-8 text-[#c8beb4] sm:text-lg">
-                ContentOS transforms videos, transcripts, and ideas into
+                {APP_NAME} transforms videos, transcripts, and ideas into
                 platform-specific content while keeping your voice, drafts, and
                 assets organized in one workspace.
               </p>
@@ -392,7 +393,7 @@ function AuthScreen() {
               One place to create and scale your content.
             </h2>
             <p className="mt-5 max-w-2xl text-base leading-7 text-[#b9aca0]">
-              ContentOS is expanding with platform integrations, direct publishing,
+              {APP_NAME} is expanding with platform integrations, direct publishing,
               better AI generation quality, and more content formats to help creators
               turn every video into publish-ready assets for different platforms.
             </p>
@@ -441,7 +442,7 @@ export default function AppFrame({ route, children }) {
       <div className="app-shell">
         <main className="app app-loading">
           <div className="panel boot-panel">
-            <p className="eyebrow">ContentOS</p>
+            <p className="eyebrow">{APP_NAME}</p>
             <h1>Loading your workspace</h1>
             <p className="muted-copy">
               Reconnecting your auth session and voice profile.
@@ -464,9 +465,9 @@ export default function AppFrame({ route, children }) {
       <main className="app workspace-layout">
         <header className="header">
           <div className="header-brand">
-            <div className="brand-mark">CO</div>
+            <div className="brand-mark">CB</div>
             <div className="brand-text">
-              <span className="brand-name">ContentOS</span>
+              <span className="brand-name">{APP_NAME}</span>
               <span className="brand-tagline">Content workspace</span>
             </div>
           </div>

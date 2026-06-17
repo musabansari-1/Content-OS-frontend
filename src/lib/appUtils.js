@@ -5,6 +5,9 @@ import {
   ASSET_STATUS_READY,
   AUTH_STORAGE_KEY,
   DEFAULT_ROUTE,
+  LEGACY_AUTH_STORAGE_KEY,
+  LEGACY_PLANNER_STORAGE_PREFIX,
+  LEGACY_WORKSPACE_STORAGE_PREFIX,
   PLANNER_STORAGE_PREFIX,
   TEMP_UNAVAILABLE_ASSET_TYPES,
   WORKSPACE_STORAGE_PREFIX,
@@ -52,10 +55,24 @@ export function persistAuth(nextToken, nextUser) {
     AUTH_STORAGE_KEY,
     JSON.stringify({ token: nextToken, user: nextUser }),
   );
+  localStorage.removeItem(LEGACY_AUTH_STORAGE_KEY);
+}
+
+export function readStoredAuth() {
+  try {
+    return JSON.parse(
+      localStorage.getItem(AUTH_STORAGE_KEY) ??
+        localStorage.getItem(LEGACY_AUTH_STORAGE_KEY) ??
+        "{}",
+    );
+  } catch {
+    return {};
+  }
 }
 
 export function clearAuthState() {
   localStorage.removeItem(AUTH_STORAGE_KEY);
+  localStorage.removeItem(LEGACY_AUTH_STORAGE_KEY);
   window.location.reload();
 }
 
@@ -400,7 +417,12 @@ export function getWorkspaceStorageKey(user) {
 
 export function readWorkspace(user) {
   try {
-    return JSON.parse(localStorage.getItem(getWorkspaceStorageKey(user)) ?? "{}");
+    const identifier = user?.id || user?.email || "anonymous";
+    const currentKey = `${WORKSPACE_STORAGE_PREFIX}:${identifier}`;
+    const legacyKey = `${LEGACY_WORKSPACE_STORAGE_PREFIX}:${identifier}`;
+    return JSON.parse(
+      localStorage.getItem(currentKey) ?? localStorage.getItem(legacyKey) ?? "{}",
+    );
   } catch {
     return {};
   }
@@ -417,7 +439,12 @@ export function getPlannerStorageKey(user) {
 
 export function readPlanner(user) {
   try {
-    return JSON.parse(localStorage.getItem(getPlannerStorageKey(user)) ?? "{}");
+    const identifier = user?.id || user?.email || "anonymous";
+    const currentKey = `${PLANNER_STORAGE_PREFIX}:${identifier}`;
+    const legacyKey = `${LEGACY_PLANNER_STORAGE_PREFIX}:${identifier}`;
+    return JSON.parse(
+      localStorage.getItem(currentKey) ?? localStorage.getItem(legacyKey) ?? "{}",
+    );
   } catch {
     return {};
   }

@@ -27,6 +27,7 @@ import {
   serializeStructuredItem,
   splitEditableList,
 } from "../../lib/appUtils";
+import { APP_NAME } from "../../lib/appConstants";
 
 function StatusPill({ status, onSelect, size = "md" }) {
   const [animating, setAnimating] = useState(false);
@@ -1400,7 +1401,7 @@ export function GenerationLoader({ job, selectedAssets, targetAssets }) {
     <div className="loader-overlay">
       <div className="loader-card">
         <div className="loader-orb" />
-        <p className="loader-badge">ContentOS is generating</p>
+        <p className="loader-badge">{APP_NAME} is generating</p>
         <h2>Building your asset pack</h2>
         <p className="loader-copy">
           {job?.detail || "Your request is in progress and the final content is on the way."}

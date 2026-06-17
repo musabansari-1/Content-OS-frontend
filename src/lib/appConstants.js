@@ -1,9 +1,13 @@
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-export const AUTH_STORAGE_KEY = "contentos-auth";
-export const WORKSPACE_STORAGE_PREFIX = "contentos-workspace-v2";
-export const PLANNER_STORAGE_PREFIX = "contentos-planner-v1";
+export const APP_NAME = "Content Burst";
+export const AUTH_STORAGE_KEY = "content-burst-auth";
+export const LEGACY_AUTH_STORAGE_KEY = "contentos-auth";
+export const WORKSPACE_STORAGE_PREFIX = "content-burst-workspace-v2";
+export const LEGACY_WORKSPACE_STORAGE_PREFIX = "contentos-workspace-v2";
+export const PLANNER_STORAGE_PREFIX = "content-burst-planner-v1";
+export const LEGACY_PLANNER_STORAGE_PREFIX = "contentos-planner-v1";
 export const DEFAULT_ROUTE = "home";
 
 export const ASSET_STATUS_DRAFT = "draft";

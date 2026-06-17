@@ -1,9 +1,10 @@
 import "./globals.css";
 import "../styles.css";
 import { AppProvider } from "../components/app/AppProvider";
+import { APP_NAME } from "../lib/appConstants";
 
 export const metadata = {
-  title: "ContentOS",
+  title: APP_NAME,
   description: "Create and manage content assets across platforms.",
 };
 

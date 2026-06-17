@@ -1,4 +1,4 @@
-# ContentOS Frontend
+# Content Burst Frontend
 
 A modern, responsive React application for content creation and repurposing. Transform YouTube transcripts into platform-specific content across LinkedIn, Twitter, TikTok, Instagram, and more.
 

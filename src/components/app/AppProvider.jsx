@@ -22,6 +22,7 @@ import {
   parseSampleBlocks,
   persistAuth,
   readPlanner,
+  readStoredAuth,
   readWorkspace,
   serializeWorkspace,
   writePlanner,
@@ -164,7 +165,7 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     try {
-      const storedAuth = JSON.parse(localStorage.getItem("contentos-auth") ?? "{}");
+      const storedAuth = readStoredAuth();
       const storedToken = storedAuth.token ?? "";
       const storedUser = storedAuth.user ?? null;
       setToken(storedToken);
