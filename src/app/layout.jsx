@@ -4,7 +4,7 @@ import { AppProvider } from "../components/app/AppProvider";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://yourdomain.app";
-const ogImageUrl = `${siteUrl}/og-image.png?v=2`;
+const ogImageUrl = `${siteUrl}/og-image-v2.png`;
 
 export const metadata = {
   metadataBase: new URL(siteUrl),
