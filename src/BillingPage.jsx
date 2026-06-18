@@ -100,7 +100,11 @@ export default function BillingPage() {
           <UsageCard
             label="Subscription status"
             value={billingSummary.subscription_status}
-            remaining={billingSummary.provider === "internal" ? "Not yet connected to Paddle" : "Managed by Paddle"}
+            remaining={
+              billingSummary.provider === "internal"
+                ? "Not yet connected to Creem"
+                : "Managed through Creem"
+            }
           />
         </div>
       ) : billingStatus === "loading" ? (
@@ -114,6 +118,13 @@ export default function BillingPage() {
         {billingPlans.map((plan) => {
           const isCurrentPlan = currentPlanCode === plan.code;
           const isPaidPlan = plan.code !== "free";
+          const canCheckout = isPaidPlan && (plan.checkout_enabled === true || Boolean(plan.checkout_url));
+          const actionLabel =
+            plan.code === "free"
+              ? "Included"
+              : canCheckout
+                ? `Continue to ${plan.label}`
+                : "Coming soon";
           return (
             <article
               key={plan.code}
@@ -144,19 +155,24 @@ export default function BillingPage() {
                   <button className="ghost-button small" type="button" disabled>
                     Current plan
                   </button>
-                ) : isPaidPlan && plan.checkout_enabled ? (
+                ) : canCheckout ? (
                   <button
                     className="primary-button"
                     type="button"
                     disabled={billingCheckoutStatus === "loading"}
                     onClick={() => handleStartBillingCheckout(plan.code)}
                   >
-                    {billingCheckoutStatus === "loading" ? "Opening checkout..." : `Upgrade to ${plan.label}`}
+                    {billingCheckoutStatus === "loading" ? "Opening checkout..." : `Continue to ${plan.label}`}
                   </button>
                 ) : (
-                  <button className="ghost-button small" type="button" disabled>
-                    {plan.code === "free" ? "Included" : "Unavailable"}
-                  </button>
+                  <div className="billing-plan-unavailable">
+                    <button className="ghost-button small" type="button" disabled>
+                      {actionLabel}
+                    </button>
+                    <span className="billing-plan-note">
+                      This tier is not open for checkout yet.
+                    </span>
+                  </div>
                 )}
               </div>
             </article>

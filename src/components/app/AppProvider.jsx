@@ -11,12 +11,11 @@ import {
   buildVideoPayload,
   buildWorkspaceAssets,
   clearAuthState,
-  ensurePaddleJs,
   getScheduledPostAssetId,
   isTemporarilyUnavailableAsset,
   normalizeGenerationGroups,
   normalizeBlockValue,
-  openPaddleCheckout,
+  openHostedCheckout,
   orderTargetAssets,
   parseLineItems,
   parseSampleBlocks,
@@ -1147,7 +1146,6 @@ export function AppProvider({ children }) {
     setBillingCheckoutError("");
 
     try {
-      await ensurePaddleJs();
       const checkoutConfig = await apiFetch(
         "/billing/checkout",
         {
@@ -1156,7 +1154,7 @@ export function AppProvider({ children }) {
         },
         token,
       );
-      await openPaddleCheckout(checkoutConfig);
+      await openHostedCheckout(checkoutConfig);
       setBillingCheckoutStatus("success");
     } catch (error) {
       setBillingCheckoutStatus("error");
