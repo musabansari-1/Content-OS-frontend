@@ -99,6 +99,7 @@ function AuthCard({ authSectionRef }) {
 
 function AuthScreen() {
   const authSectionRef = useRef(null);
+  const currentYear = new Date().getFullYear();
 
   const scrollToAuth = (event) => {
     event.preventDefault();
@@ -419,6 +420,29 @@ function AuthScreen() {
             </a>
           </div>
         </section>
+
+        <footer className="landing-footer">
+          <div className="landing-footer-brand">
+            <div className="landing-footer-mark">CB</div>
+            <div>
+              <p className="landing-footer-title">{APP_NAME}</p>
+              <p className="landing-footer-copy">
+                Turn one video into platform-native assets that keep pointing people
+                back to the original source.
+              </p>
+            </div>
+          </div>
+
+          <div className="landing-footer-links">
+            <Link href="/privacy">Privacy Policy</Link>
+            <Link href="/terms">Terms of Service</Link>
+          </div>
+
+          <div className="landing-footer-meta">
+            <p>Copyright {currentYear} {APP_NAME}. All rights reserved.</p>
+            <p>Built for creators, teams, and distribution-first workflows.</p>
+          </div>
+        </footer>
       </main>
     </div>
   );
