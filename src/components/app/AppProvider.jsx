@@ -100,6 +100,8 @@ export function AppProvider({ children }) {
   const [billingError, setBillingError] = useState("");
   const [billingCheckoutStatus, setBillingCheckoutStatus] = useState("idle");
   const [billingCheckoutError, setBillingCheckoutError] = useState("");
+  const [billingCancelStatus, setBillingCancelStatus] = useState("idle");
+  const [billingCancelError, setBillingCancelError] = useState("");
 
   const normalizeStoredRolloutPlans = (storedPlanner) => {
     const rawPlans = Array.isArray(storedPlanner?.rollouts)
@@ -225,6 +227,8 @@ export function AppProvider({ children }) {
       setRolloutScheduleResult(null);
       setCancelScheduledPostId(null);
       setCancelScheduledPostError("");
+      setBillingCancelStatus("idle");
+      setBillingCancelError("");
       setCampaignPlans([]);
       setPlannerSaveStatus("idle");
       setPlannerLoaded(false);
@@ -516,6 +520,8 @@ export function AppProvider({ children }) {
     setBillingError("");
     setBillingCheckoutStatus("idle");
     setBillingCheckoutError("");
+    setBillingCancelStatus("idle");
+    setBillingCancelError("");
     setGenerateError("");
     setWorkspaceAssets([]);
     setGenerationGroups([]);
@@ -1163,6 +1169,28 @@ export function AppProvider({ children }) {
     }
   };
 
+  const handleCancelSubscription = async () => {
+    if (!token) {
+      setBillingCancelError("Log in before changing your subscription.");
+      return;
+    }
+
+    setBillingCancelStatus("loading");
+    setBillingCancelError("");
+
+    try {
+      const summary = await apiFetch("/billing/cancel", { method: "POST" }, token);
+      setBillingSummary(summary);
+      setBillingStatus("success");
+      setBillingError("");
+      setBillingCancelStatus("success");
+    } catch (error) {
+      setBillingCancelStatus("error");
+      setBillingCancelError(error.message);
+      throw error;
+    }
+  };
+
   const handleExportWorkspace = async () => {
     await navigator.clipboard.writeText(serializeWorkspace(workspaceAssets));
   };
@@ -1267,8 +1295,11 @@ export function AppProvider({ children }) {
       billingError,
       billingCheckoutStatus,
       billingCheckoutError,
+      billingCancelStatus,
+      billingCancelError,
       refreshBilling,
       handleStartBillingCheckout,
+      handleCancelSubscription,
       setYoutubeProfileInput(value) {
         setYoutubeText(value);
         if (value.trim()) setYoutubeTranscriptText("");
@@ -1314,6 +1345,8 @@ export function AppProvider({ children }) {
       lastGeneratedCount,
       billingCheckoutError,
       billingCheckoutStatus,
+      billingCancelError,
+      billingCancelStatus,
       billingError,
       billingPlans,
       billingStatus,

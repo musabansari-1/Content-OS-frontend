@@ -25,8 +25,11 @@ export default function BillingPage() {
     billingError,
     billingCheckoutStatus,
     billingCheckoutError,
+    billingCancelStatus,
+    billingCancelError,
     refreshBilling,
     handleStartBillingCheckout,
+    handleCancelSubscription,
   } = useAppState();
   const [pageNotice, setPageNotice] = useState("");
 
@@ -78,6 +81,33 @@ export default function BillingPage() {
       {pageNotice ? <div className="billing-banner success">{pageNotice}</div> : null}
       {billingError ? <div className="billing-banner error">{billingError}</div> : null}
       {billingCheckoutError ? <div className="billing-banner error">{billingCheckoutError}</div> : null}
+      {billingCancelError ? <div className="billing-banner error">{billingCancelError}</div> : null}
+      {billingCancelStatus === "success" ? (
+        <div className="billing-banner success">
+          Your subscription will cancel at the end of the current billing period.
+        </div>
+      ) : null}
+
+      {billingSummary ? (
+        <div className="billing-management-row">
+          {billingSummary.provider !== "internal" && currentPlanCode !== "free" ? (
+            billingSummary.cancel_at_period_end ? (
+              <div className="billing-plan-note">
+                Cancellation is already scheduled. You will keep access until {formatPeriodEnd(billingSummary.current_period_end)}.
+              </div>
+            ) : (
+              <button
+                className="ghost-button small"
+                type="button"
+                disabled={billingCancelStatus === "loading"}
+                onClick={() => handleCancelSubscription()}
+              >
+                {billingCancelStatus === "loading" ? "Scheduling cancellation..." : "Cancel at period end"}
+              </button>
+            )
+          ) : null}
+        </div>
+      ) : null}
 
       {billingSummary ? (
         <div className="billing-usage-grid">
