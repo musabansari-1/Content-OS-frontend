@@ -1,5 +1,5 @@
 import LegalPageLayout from "../../components/app/LegalPageLayout";
-import { APP_NAME } from "../../lib/appConstants";
+import { APP_NAME, SUPPORT_EMAIL } from "../../lib/appConstants";
 
 export const metadata = {
   title: `Privacy Policy | ${APP_NAME}`,
@@ -63,7 +63,7 @@ const sections = [
   {
     title: "Contact",
     paragraphs: [
-      `If you have privacy questions or requests related to ${APP_NAME}, contact the team through the support channel or business email listed on your website and product materials.`,
+      `If you have privacy questions or requests related to ${APP_NAME}, email ${SUPPORT_EMAIL} or use the support page on the website.`,
     ],
   },
 ];

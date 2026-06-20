@@ -1,5 +1,5 @@
 import LegalPageLayout from "../../components/app/LegalPageLayout";
-import { APP_NAME } from "../../lib/appConstants";
+import { APP_NAME, SUPPORT_EMAIL } from "../../lib/appConstants";
 
 export const metadata = {
   title: `Terms of Service | ${APP_NAME}`,
@@ -70,7 +70,7 @@ const sections = [
   {
     title: "Contact",
     paragraphs: [
-      `If you have questions about these terms, contact the ${APP_NAME} team through the support or business contact listed on your website.`,
+      `If you have questions about these terms, contact the ${APP_NAME} team at ${SUPPORT_EMAIL} or through the support page on the website.`,
     ],
   },
 ];

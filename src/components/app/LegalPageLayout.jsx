@@ -34,6 +34,9 @@ export default function LegalPageLayout({
             <Link className="transition hover:text-white" href="/terms">
               Terms
             </Link>
+            <Link className="transition hover:text-white" href="/support">
+              Support
+            </Link>
           </div>
         </div>
 
