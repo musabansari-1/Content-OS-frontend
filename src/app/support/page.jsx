@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { APP_NAME, SUPPORT_EMAIL, SUPPORT_MAILTO } from "../../lib/appConstants";
+import { buildSeoMetadata } from "../../lib/seo";
 
-export const metadata = {
-  title: `Contact Support | ${APP_NAME}`,
+export const metadata = buildSeoMetadata({
+  title: "Contact Support",
   description: `Get in touch with the ${APP_NAME} support team.`,
-};
+  path: "/support",
+});
 
 export default function SupportPage() {
   return (

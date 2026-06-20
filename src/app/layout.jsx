@@ -1,44 +1,45 @@
 import "./globals.css";
 import "../styles.css";
 import { AppProvider } from "../components/app/AppProvider";
+import {
+  buildJsonLd,
+  buildSeoMetadata,
+  SITE_DESCRIPTION,
+  SITE_TITLE,
+  SITE_URL,
+} from "../lib/seo";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://yourdomain.app";
-const ogImageUrl = `${siteUrl}/og-image-v2.png`;
+const rootSeoMetadata = buildSeoMetadata({
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  path: "/",
+});
 
 export const metadata = {
-  metadataBase: new URL(siteUrl),
-  title: "10x your reach with 1x effort",
-  description:
-    "Turn one YouTube video into platform-native assets that drive traffic back to the original video.",
-  openGraph: {
-    title: "10x your reach with 1x effort",
-    description:
-      "Turn one YouTube video into platform-native assets that drive traffic back to the original video.",
-    url: siteUrl,
-    type: "website",
-    images: [
-      {
-        url: ogImageUrl,
-        width: 1200,
-        height: 630,
-        alt: "10x your reach with 1x effort",
-      },
-    ],
+  ...rootSeoMetadata,
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_TITLE,
+    template: "%s | Content Burst",
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "10x your reach with 1x effort",
-    description:
-      "Turn one YouTube video into platform-native assets that drive traffic back to the original video.",
-    images: [ogImageUrl],
-  },
+  applicationName: "Content Burst",
+  manifest: "/manifest.webmanifest",
+  authors: [{ name: "Content Burst" }],
+  creator: "Content Burst",
+  publisher: "Content Burst",
+  category: "AI content repurposing",
 };
 
 export default function RootLayout({ children }) {
+  const jsonLd = buildJsonLd();
+
   return (
     <html lang="en">
       <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <AppProvider>{children}</AppProvider>
       </body>
     </html>

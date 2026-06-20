@@ -1,10 +1,12 @@
 import LegalPageLayout from "../../components/app/LegalPageLayout";
 import { APP_NAME, SUPPORT_EMAIL } from "../../lib/appConstants";
+import { buildSeoMetadata } from "../../lib/seo";
 
-export const metadata = {
-  title: `Terms of Service | ${APP_NAME}`,
+export const metadata = buildSeoMetadata({
+  title: "Terms of Service",
   description: `Review the terms that govern your use of ${APP_NAME}.`,
-};
+  path: "/terms",
+});
 
 const sections = [
   {

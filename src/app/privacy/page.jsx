@@ -1,10 +1,12 @@
 import LegalPageLayout from "../../components/app/LegalPageLayout";
 import { APP_NAME, SUPPORT_EMAIL } from "../../lib/appConstants";
+import { buildSeoMetadata } from "../../lib/seo";
 
-export const metadata = {
-  title: `Privacy Policy | ${APP_NAME}`,
+export const metadata = buildSeoMetadata({
+  title: "Privacy Policy",
   description: `Learn how ${APP_NAME} collects, uses, and protects your information.`,
-};
+  path: "/privacy",
+});
 
 const sections = [
   {
