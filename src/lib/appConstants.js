@@ -2,6 +2,9 @@ export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export const APP_NAME = "Content Burst";
+export const SUPPORT_EMAIL =
+  process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@contentburst.app";
+export const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}`;
 export const AUTH_STORAGE_KEY = "content-burst-auth";
 export const LEGACY_AUTH_STORAGE_KEY = "contentos-auth";
 export const WORKSPACE_STORAGE_PREFIX = "content-burst-workspace-v2";
