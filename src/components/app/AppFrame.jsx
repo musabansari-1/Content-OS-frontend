@@ -427,8 +427,7 @@ function AuthScreen() {
             <div>
               <p className="landing-footer-title">{APP_NAME}</p>
               <p className="landing-footer-copy">
-                Turn one video into platform-native assets that keep pointing people
-                back to the original source.
+                Turn one video into platform-native assets that keep pointing people back to the original source.
               </p>
             </div>
           </div>
@@ -436,11 +435,14 @@ function AuthScreen() {
           <div className="landing-footer-links">
             <Link href="/privacy">Privacy Policy</Link>
             <Link href="/terms">Terms of Service</Link>
+            <Link href="/support">Contact Support</Link>
           </div>
 
           <div className="landing-footer-meta">
-            <p>Copyright {currentYear} {APP_NAME}. All rights reserved.</p>
-            <p>Built for creators, teams, and distribution-first workflows.</p>
+            <div>
+              <p style={{ marginBottom: '4px' }}>© {currentYear} {APP_NAME}. All rights reserved.</p>
+              <p style={{ marginTop: '4px', opacity: 0.8 }}>Built for creators, teams, and distribution-first workflows.</p>
+            </div>
           </div>
         </footer>
       </main>
