@@ -27,6 +27,7 @@ import {
   writePlanner,
   writeWorkspace,
 } from "../../lib/appUtils";
+import { REMOVED_ASSET_TYPES } from "../../lib/appConstants";
 
 const AppStateContext = createContext(null);
 
@@ -190,7 +191,10 @@ export function AppProvider({ children }) {
         const { enabled, ordered } = orderTargetAssets(catalog);
         setTargetAssets(ordered);
         setSelectedAssets((current) => {
-          if (current.length) return current;
+          const cleanedCurrent = current.filter(
+            (assetType) => !REMOVED_ASSET_TYPES.includes(assetType),
+          );
+          if (cleanedCurrent.length) return cleanedCurrent;
           return enabled.slice(0, 3).map((asset) => asset.asset_type);
         });
         const plans = await apiFetch("/billing/plans", { method: "GET" });
@@ -534,6 +538,11 @@ export function AppProvider({ children }) {
   };
 
   const handleAssetToggle = (assetType) => {
+    if (REMOVED_ASSET_TYPES.includes(assetType)) {
+      setUnavailableMessage("That asset type is no longer available.");
+      return;
+    }
+
     if (isTemporarilyUnavailableAsset(assetType)) {
       const label =
         targetAssets.find((asset) => asset.asset_type === assetType)?.label ??

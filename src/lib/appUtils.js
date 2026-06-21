@@ -9,6 +9,7 @@ import {
   LEGACY_PLANNER_STORAGE_PREFIX,
   LEGACY_WORKSPACE_STORAGE_PREFIX,
   PLANNER_STORAGE_PREFIX,
+  REMOVED_ASSET_TYPES,
   TEMP_UNAVAILABLE_ASSET_TYPES,
   WORKSPACE_STORAGE_PREFIX,
 } from "./appConstants";
@@ -96,7 +97,7 @@ export function getPlatformHook(platform) {
   const hooks = {
     twitter: "Thread draft",
     tiktok: "Short-form script",
-    youtube: "Video angle",
+    youtube: "YouTube draft",
     linkedin: "Professional post",
     instagram: "Instagram asset",
     blog: "Blog draft",
@@ -153,7 +154,7 @@ export function buildWorkspaceAssets(results, sourceLabel, metadata = {}) {
     return {
       id: buildAssetId(result, index),
       title,
-      platformLabel: capitalize(result.platform || "generated"),
+      platformLabel: formatPlatformName(result.platform || "generated"),
       assetType: result.asset_type || "generic",
       sourceLabel,
       generationGroupId: metadata.generationGroupId || "",
@@ -504,6 +505,7 @@ export function formatPlatformName(platform = "") {
     linkedin: "LinkedIn",
     instagram: "Instagram",
     tiktok: "TikTok",
+    youtube: "YouTube",
     ghost: "Ghost",
   };
   return labels[normalized] || capitalize(normalized || "platform");
@@ -777,9 +779,14 @@ export function serializeListToText(list) {
 }
 
 export function orderTargetAssets(catalog = []) {
-  const enabled = catalog.filter(
-    (asset) => !TEMP_UNAVAILABLE_ASSET_TYPES.includes(asset.asset_type),
-  );
+  const enabled = catalog.filter((asset) => {
+    const assetType = String(asset?.asset_type || "").trim();
+    return (
+      assetType &&
+      !TEMP_UNAVAILABLE_ASSET_TYPES.includes(assetType) &&
+      !REMOVED_ASSET_TYPES.includes(assetType)
+    );
+  });
   const disabled = catalog.filter((asset) =>
     TEMP_UNAVAILABLE_ASSET_TYPES.includes(asset.asset_type),
   );

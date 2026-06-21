@@ -12,6 +12,7 @@ export const LEGACY_WORKSPACE_STORAGE_PREFIX = "contentos-workspace-v2";
 export const PLANNER_STORAGE_PREFIX = "content-burst-planner-v1";
 export const LEGACY_PLANNER_STORAGE_PREFIX = "contentos-planner-v1";
 export const DEFAULT_ROUTE = "home";
+export const REMOVED_ASSET_TYPES = ["youtube_video_idea"];
 
 export const ASSET_STATUS_DRAFT = "draft";
 export const ASSET_STATUS_READY = "ready";
