@@ -585,13 +585,13 @@ export function AppProvider({ children }) {
       let uploadedVideoMetadata = null;
 
       if (uploadedVideo) {
-        const maxSize = 100 * 1024 * 1024;
+        const maxSize = 1.0 * 1024 * 1024 * 1024;
         if (uploadedVideo.size > maxSize) {
           throw new Error(
-            `File too large. Maximum size is 100MB. Your file is ${(
+            `File too large. Maximum size is 1.0GB. Your file is ${(
               uploadedVideo.size /
-              (1024 * 1024)
-            ).toFixed(1)}MB.`,
+              (1024 * 1024 * 1024)
+            ).toFixed(2)}GB.`,
           );
         }
 
