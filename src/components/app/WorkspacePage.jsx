@@ -29,6 +29,45 @@ import {
 } from "../../lib/appUtils";
 import { APP_NAME } from "../../lib/appConstants";
 
+function getVideoDownloadFilename(asset) {
+  const rawTitle = String(asset?.title || asset?.media?.label || "generated-clip")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const fallbackName = rawTitle || "generated-clip";
+  const videoUrl = String(asset?.media?.videoUrl || "");
+  const match = videoUrl.match(/\.([a-z0-9]{2,5})(?:[?#]|$)/i);
+  const extension = match?.[1]?.toLowerCase() || "mp4";
+  return `${fallbackName}.${extension}`;
+}
+
+async function downloadVideoAsset(asset) {
+  const videoUrl = String(asset?.media?.videoUrl || "").trim();
+  if (!videoUrl) {
+    throw new Error("No video file is available for this asset yet.");
+  }
+
+  const response = await fetch(videoUrl);
+  if (!response.ok) {
+    throw new Error("Could not download this video right now.");
+  }
+
+  const blob = await response.blob();
+  const objectUrl = window.URL.createObjectURL(blob);
+
+  try {
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = getVideoDownloadFilename(asset);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } finally {
+    window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
+  }
+}
+
 function StatusPill({ status, onSelect, size = "md" }) {
   const [animating, setAnimating] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -1067,6 +1106,8 @@ function AssetDocument({
   const [carouselView, setCarouselView] = useState("preview");
   const [scheduleValue, setScheduleValue] = useState(() => getDefaultScheduleValue());
   const [showScheduler, setShowScheduler] = useState(false);
+  const [videoDownloadState, setVideoDownloadState] = useState("idle");
+  const [videoDownloadError, setVideoDownloadError] = useState("");
   const liveSlides = isCarouselAsset(asset) ? extractLiveSlides(asset.blocks) : null;
   const isLinkedInAsset = (asset.assetType || "").toLowerCase().includes("linkedin");
   const isInstagramAsset = (asset.assetType || "").toLowerCase().includes("instagram");
@@ -1100,7 +1141,24 @@ function AssetDocument({
   useEffect(() => {
     setScheduleValue(getDefaultScheduleValue());
     setShowScheduler(false);
+    setVideoDownloadState("idle");
+    setVideoDownloadError("");
   }, [asset.id]);
+
+  const handleVideoDownload = async () => {
+    setVideoDownloadState("loading");
+    setVideoDownloadError("");
+
+    try {
+      await downloadVideoAsset(asset);
+      setVideoDownloadState("success");
+    } catch (error) {
+      setVideoDownloadState("error");
+      setVideoDownloadError(
+        error instanceof Error ? error.message : "Could not download this video right now.",
+      );
+    }
+  };
 
   return (
     <article className="asset-document">
@@ -1305,9 +1363,19 @@ function AssetDocument({
               <p className="content-label">Playable clip</p>
               <h4>{asset.media.label || "Generated clip"}</h4>
             </div>
-            {asset.media.duration ? (
-              <span className="summary-tag">{Math.round(asset.media.duration)}s</span>
-            ) : null}
+            <div className="asset-media-actions">
+              {asset.media.duration ? (
+                <span className="summary-tag">{Math.round(asset.media.duration)}s</span>
+              ) : null}
+              <button
+                className="ghost-button small"
+                onClick={handleVideoDownload}
+                type="button"
+                disabled={videoDownloadState === "loading"}
+              >
+                {videoDownloadState === "loading" ? "Downloading..." : "Download video"}
+              </button>
+            </div>
           </div>
           <video
             className="asset-video-player"
@@ -1317,6 +1385,11 @@ function AssetDocument({
           >
             Your browser does not support video playback.
           </video>
+          {videoDownloadError ? (
+            <p className="error asset-media-note">{videoDownloadError}</p>
+          ) : videoDownloadState === "success" ? (
+            <p className="success asset-media-note">Video download started.</p>
+          ) : null}
         </div>
       ) : null}
 
