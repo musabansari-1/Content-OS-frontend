@@ -10,22 +10,22 @@ export const metadata = buildSeoMetadata({
 
 const sections = [
   {
-    title: "Information we collect",
+    title: "What we collect",
     paragraphs: [
-      `${APP_NAME} collects the information you provide when you create an account, connect tools, upload source material, save a voice profile, or contact support.`,
-      "This may include your name, email address, billing details, uploaded videos, transcripts, prompts, generated assets, and usage activity inside the product.",
+      `${APP_NAME} collects the information you choose to give us when you create an account, connect tools, upload source material, save a voice profile, or contact support.`,
+      "That may include your name, email address, billing details, uploaded videos, transcripts, prompts, generated assets, and activity inside the product.",
     ],
   },
   {
-    title: "How we use your information",
+    title: "How we use it",
     paragraphs: [
-      "We use your information to operate the product, generate content, personalize your workspace, process billing, improve reliability, and respond to support requests.",
+      "We use your information to run the product, sign you in, generate content, personalize your workspace, process billing, and reply to support requests.",
     ],
     items: [
-      "Provide account access and secure authentication",
+      "Create and manage your account",
       "Generate platform-native content from your source material",
       "Save workspace history, voice settings, and publishing preferences",
-      "Monitor product performance, prevent abuse, and investigate incidents",
+      "Keep the product working and help us fix issues",
       "Communicate product updates, service notices, and support responses",
     ],
   },
@@ -33,33 +33,35 @@ const sections = [
     title: "How your content is handled",
     paragraphs: [
       "Your uploaded materials and generated outputs are processed so the service can create, store, and organize assets for you.",
-      "If third-party model or infrastructure providers are used to deliver the service, relevant content may be sent to those subprocessors strictly to power generation, storage, analytics, or billing workflows.",
+      "If we use outside providers for generation, storage, analytics, or billing, we send only the content needed for that task.",
     ],
   },
   {
-    title: "Sharing and disclosure",
+    title: "When we share data",
     paragraphs: [
-      "We do not sell your personal information. We only share data with service providers and partners who help us run the product, such as hosting, analytics, authentication, and payment providers.",
-      "We may also disclose information if required by law, to enforce our terms, or to protect the security of the platform and its users.",
+      "We do not sell your personal information. We share data only with service providers that help us run the product, like hosting, authentication, payment, and model providers, or when the law requires it.",
+      "We may also share information when we need to enforce our terms.",
     ],
   },
   {
-    title: "Data retention",
+    title: "How long we keep it",
     paragraphs: [
-      "We retain account information, workspace content, and billing records for as long as needed to provide the service, comply with legal obligations, resolve disputes, and enforce agreements.",
-      "You can request deletion of your account and associated data, subject to any records we must keep for legal, security, or financial reasons.",
+      "We keep account information, workspace content, and billing records for as long as we need them to provide the service, meet legal requirements, resolve disputes, and enforce agreements.",
+      "You can ask us to delete your account and related data, except for records we must keep for legal, security, or financial reasons.",
     ],
   },
   {
     title: "Security",
     paragraphs: [
-      "We use reasonable administrative, technical, and organizational safeguards to protect your information. No system can guarantee absolute security, so you should also protect your account credentials and use strong passwords.",
+      "We use password hashing, signed access tokens, protected session cookies, and origin restrictions to help protect your account and data.",
+      "No system can guarantee perfect security, so please protect your account credentials and use a strong password.",
     ],
   },
   {
     title: "Your choices",
     paragraphs: [
-      "You can update account details, remove connected services, and stop using the product at any time. Depending on your location, you may also have rights to access, correct, delete, or object to certain processing of your personal information.",
+      "You can update account details, remove connected services, and stop using the product at any time.",
+      "Depending on where you live, you may also have rights to access, correct, delete, or object to certain uses of your personal information.",
     ],
   },
   {
@@ -75,7 +77,7 @@ export default function PrivacyPage() {
     <LegalPageLayout
       eyebrow="Privacy Policy"
       title="How we handle your data"
-      summary="This policy explains what information we collect, how we use it, and the choices you have when using the product."
+      summary="This policy explains what we collect, how we use it, and the choices you have while using the product."
       effectiveDate="June 18, 2026"
       sections={sections}
     />
