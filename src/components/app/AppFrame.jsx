@@ -1,10 +1,124 @@
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GenerationLoader } from "./WorkspacePage";
 import { useAppState } from "./AppProvider";
-import { APP_NAME } from "../../lib/appConstants";
+import { APP_NAME, GOOGLE_CLIENT_ID } from "../../lib/appConstants";
+
+function AuthNotice({
+  message,
+  kind = "info",
+  actionUrl = "",
+  actionLabel = "",
+}) {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <div className={`auth-notice auth-notice-${kind}`}>
+      <p>{message}</p>
+      {actionUrl && actionLabel ? (
+        <a href={actionUrl} rel="noreferrer" target="_blank">
+          {actionLabel}
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+function GoogleSignInButton({ authMode }) {
+  const { googleAuthStatus, googleAuthError, handleGoogleSignIn } = useAppState();
+  const buttonRef = useRef(null);
+  const callbackRef = useRef(handleGoogleSignIn);
+  const [scriptError, setScriptError] = useState("");
+
+  useEffect(() => {
+    callbackRef.current = handleGoogleSignIn;
+  }, [handleGoogleSignIn]);
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || authMode === "forgot") {
+      return undefined;
+    }
+
+    let cancelled = false;
+    let script = null;
+
+    const renderButton = () => {
+      if (cancelled || !buttonRef.current || !window.google?.accounts?.id) {
+        return;
+      }
+
+      setScriptError("");
+      buttonRef.current.innerHTML = "";
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: ({ credential }) => {
+          callbackRef.current(credential || "");
+        },
+      });
+      window.google.accounts.id.renderButton(buttonRef.current, {
+        theme: "outline",
+        size: "large",
+        shape: "pill",
+        text: authMode === "login" ? "signin_with" : "signup_with",
+        width: 360,
+      });
+    };
+
+    if (window.google?.accounts?.id) {
+      renderButton();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    script = document.querySelector('script[data-google-identity="true"]');
+    const handleLoad = () => {
+      renderButton();
+    };
+    const handleError = () => {
+      if (!cancelled) {
+        setScriptError("Google sign-in is unavailable right now. Try email login instead.");
+      }
+    };
+
+    if (!script) {
+      script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.dataset.googleIdentity = "true";
+      document.head.appendChild(script);
+    }
+
+    script.addEventListener("load", handleLoad);
+    script.addEventListener("error", handleError);
+
+    return () => {
+      cancelled = true;
+      script?.removeEventListener("load", handleLoad);
+      script?.removeEventListener("error", handleError);
+    };
+  }, [authMode]);
+
+  if (!GOOGLE_CLIENT_ID || authMode === "forgot") {
+    return null;
+  }
+
+  return (
+    <div className="google-auth-block">
+      <div className="google-auth-button" ref={buttonRef} />
+      {googleAuthStatus === "loading" ? (
+        <p className="muted-copy auth-inline-copy">Signing in with Google...</p>
+      ) : null}
+      {scriptError ? <p className="error">{scriptError}</p> : null}
+      {googleAuthError ? <p className="error">{googleAuthError}</p> : null}
+    </div>
+  );
+}
 
 function AuthCard({ authSectionRef }) {
   const {
@@ -13,9 +127,14 @@ function AuthCard({ authSectionRef }) {
     authForm,
     authStatus,
     authError,
+    authMessage,
+    authMessageKind,
+    authActionUrl,
+    authActionLabel,
     handleAuthChange,
     handleAuthSubmit,
   } = useAppState();
+  const isForgotMode = authMode === "forgot";
 
   return (
     <section
@@ -25,9 +144,17 @@ function AuthCard({ authSectionRef }) {
     >
       <div className="landing-auth-copy">
         <p className="eyebrow">Start now</p>
-        <h2>{authMode === "login" ? "Welcome back" : "Create your workspace"}</h2>
+        <h2>
+          {isForgotMode
+            ? "Reset your password"
+            : authMode === "login"
+              ? "Welcome back"
+              : "Create your workspace"}
+        </h2>
         <p className="muted-copy">
-          {authMode === "login"
+          {isForgotMode
+            ? "Enter your email and we will send you a secure reset link."
+            : authMode === "login"
             ? "Sign in to continue generating assets inside your saved workspace."
             : "Create an account so your voice profile, outputs, and billing history stay attached to you."}
         </p>
@@ -48,6 +175,12 @@ function AuthCard({ authSectionRef }) {
           Register
         </button>
       </div>
+      <GoogleSignInButton authMode={authMode} />
+      {!isForgotMode ? (
+        <div className="auth-divider">
+          <span>or use email</span>
+        </div>
+      ) : null}
       <form className="stack-form" onSubmit={handleAuthSubmit}>
         {authMode === "register" ? (
           <label className="field">
@@ -69,29 +202,60 @@ function AuthCard({ authSectionRef }) {
             onChange={(event) => handleAuthChange("email", event.target.value)}
           />
         </label>
-        <label className="field">
-          <span>Password</span>
-          <input
-            type="password"
-            placeholder="At least 8 characters"
-            value={authForm.password}
-            onChange={(event) => handleAuthChange("password", event.target.value)}
-          />
-        </label>
+        {!isForgotMode ? (
+          <label className="field">
+            <span>Password</span>
+            <input
+              type="password"
+              placeholder="At least 8 characters"
+              value={authForm.password}
+              onChange={(event) => handleAuthChange("password", event.target.value)}
+            />
+          </label>
+        ) : null}
         <button
           className="primary-button"
           type="submit"
           disabled={authStatus === "loading"}
         >
           {authStatus === "loading"
-            ? authMode === "login"
+            ? isForgotMode
+              ? "Sending reset link..."
+              : authMode === "login"
               ? "Signing in..."
               : "Creating account..."
-            : authMode === "login"
+            : isForgotMode
+              ? "Send reset link"
+              : authMode === "login"
               ? "Login"
               : "Create account"}
         </button>
       </form>
+      <div className="auth-subactions">
+        {isForgotMode ? (
+          <button
+            className="text-link-button"
+            onClick={() => setAuthMode("login")}
+            type="button"
+          >
+            Back to login
+          </button>
+        ) : (
+          <button
+            className="text-link-button"
+            onClick={() => setAuthMode("forgot")}
+            type="button"
+          >
+            Forgot password?
+          </button>
+        )}
+      </div>
+      <AuthNotice
+        actionLabel={authActionLabel}
+        actionUrl={authActionUrl}
+        kind={authMessageKind}
+        message={authMessage}
+      />
       {authError ? <p className="error">{authError}</p> : null}
     </section>
   );
@@ -143,6 +307,15 @@ function AuthScreen() {
             <a className="transition hover:text-white" href="#pricing">
               What&apos;s next
             </a>
+            <Link className="transition hover:text-white" href="/privacy">
+              Privacy
+            </Link>
+            <Link className="transition hover:text-white" href="/terms">
+              Terms
+            </Link>
+            <Link className="transition hover:text-white" href="/support">
+              Contact Support
+            </Link>
             <a
               className="transition hover:text-white"
               href="#auth"
@@ -440,8 +613,8 @@ function AuthScreen() {
 
           <div className="landing-footer-meta">
             <div>
-              <p style={{ marginBottom: '4px' }}>© {currentYear} {APP_NAME}. All rights reserved.</p>
-              <p style={{ marginTop: '4px', opacity: 0.8 }}>Built for creators, teams, and distribution-first workflows.</p>
+              <p style={{ marginBottom: "4px" }}>© {currentYear} {APP_NAME}. All rights reserved.</p>
+              <p style={{ marginTop: "4px", opacity: 0.8 }}>Built for creators, teams, and distribution-first workflows.</p>
             </div>
           </div>
         </footer>
@@ -461,7 +634,14 @@ export default function AppFrame({ route, children }) {
     generateJob,
     selectedAssets,
     targetAssets,
+    authMessage,
+    authMessageKind,
+    authActionUrl,
+    authActionLabel,
+    verificationStatus,
+    handleResendVerification,
   } = useAppState();
+  const showVerificationBanner = Boolean(user && !user.email_verified);
 
   if (bootStatus === "loading") {
     return (
@@ -554,6 +734,45 @@ export default function AppFrame({ route, children }) {
             </button>
           </div>
         </header>
+
+        {showVerificationBanner ? (
+          <section className="auth-banner auth-banner-warning">
+            <div>
+              <p className="eyebrow">Email verification</p>
+              <h2>Verify your email to unlock publishing and billing</h2>
+              <p className="muted-copy">
+                {authMessage || "Check your inbox for the verification link, or resend it from here."}
+              </p>
+            </div>
+            <div className="auth-banner-actions">
+              <button
+                className="primary-button"
+                disabled={verificationStatus === "loading"}
+                onClick={handleResendVerification}
+                type="button"
+              >
+                {verificationStatus === "loading" ? "Sending..." : "Resend verification email"}
+              </button>
+              {authActionUrl && authActionLabel ? (
+                <a
+                  className="ghost-button"
+                  href={authActionUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {authActionLabel}
+                </a>
+              ) : null}
+            </div>
+          </section>
+        ) : authMessage ? (
+          <AuthNotice
+            actionLabel={authActionLabel}
+            actionUrl={authActionUrl}
+            kind={authMessageKind}
+            message={authMessage}
+          />
+        ) : null}
 
         {children}
       </main>

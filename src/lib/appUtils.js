@@ -15,9 +15,17 @@ import {
 } from "./appConstants";
 
 export async function apiFetch(path, options = {}, token = "") {
-  const headers = { "Content-Type": "application/json", ...(options.headers ?? {}) };
+  const headers = { ...(options.headers ?? {}) };
+  if (!(options.body instanceof FormData) && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
   if (token) headers.Authorization = `Bearer ${token}`;
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    credentials: "include",
+    ...options,
+    headers,
+  });
+  if (response.status === 204) return {};
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(data.detail || "Request failed.");
@@ -71,10 +79,12 @@ export function readStoredAuth() {
   }
 }
 
-export function clearAuthState() {
+export function clearAuthState({ reload = false } = {}) {
   localStorage.removeItem(AUTH_STORAGE_KEY);
   localStorage.removeItem(LEGACY_AUTH_STORAGE_KEY);
-  window.location.reload();
+  if (reload && typeof window !== "undefined") {
+    window.location.reload();
+  }
 }
 
 export function safeParse(output) {

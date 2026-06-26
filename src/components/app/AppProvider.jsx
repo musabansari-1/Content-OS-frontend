@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { API_BASE_URL } from "../../lib/appConstants";
+import { API_BASE_URL, GOOGLE_CLIENT_ID } from "../../lib/appConstants";
 import {
   apiFetch,
   buildGenerationGroup,
@@ -42,6 +42,13 @@ export function AppProvider({ children }) {
   });
   const [authStatus, setAuthStatus] = useState("idle");
   const [authError, setAuthError] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
+  const [authMessageKind, setAuthMessageKind] = useState("info");
+  const [authActionUrl, setAuthActionUrl] = useState("");
+  const [authActionLabel, setAuthActionLabel] = useState("");
+  const [googleAuthStatus, setGoogleAuthStatus] = useState("idle");
+  const [googleAuthError, setGoogleAuthError] = useState("");
+  const [verificationStatus, setVerificationStatus] = useState("idle");
   const [bootStatus, setBootStatus] = useState("loading");
 
   const [videoInput, setVideoInput] = useState("");
@@ -103,6 +110,119 @@ export function AppProvider({ children }) {
   const [billingCheckoutError, setBillingCheckoutError] = useState("");
   const [billingCancelStatus, setBillingCancelStatus] = useState("idle");
   const [billingCancelError, setBillingCancelError] = useState("");
+  const tokenRef = useRef("");
+  const refreshPromiseRef = useRef(null);
+
+  const setAuthNotice = ({
+    message = "",
+    kind = "info",
+    actionUrl = "",
+    actionLabel = "",
+  } = {}) => {
+    setAuthMessage(message);
+    setAuthMessageKind(kind);
+    setAuthActionUrl(actionUrl);
+    setAuthActionLabel(actionLabel);
+  };
+
+  const syncAuthSession = (accessToken, nextUser) => {
+    tokenRef.current = accessToken || "";
+    setToken(accessToken || "");
+    setUser(nextUser || null);
+    if (accessToken && nextUser) {
+      persistAuth(accessToken, nextUser);
+      return;
+    }
+    clearAuthState();
+  };
+
+  const resetAuthState = () => {
+    tokenRef.current = "";
+    clearAuthState();
+    setToken("");
+    setUser(null);
+  };
+
+  const handleVerificationRequirement = (response) => {
+    if (!response?.email_verification_required) {
+      return;
+    }
+    setAuthNotice({
+      message: response.email_verification_sent
+        ? "Verify your email to unlock billing, integrations, and publishing. We just sent you a verification link."
+        : "Verify your email to unlock billing, integrations, and publishing.",
+      kind: "warning",
+      actionUrl: response.email_verification_preview_url || "",
+      actionLabel: response.email_verification_preview_url
+        ? "Open verification link"
+        : "",
+    });
+  };
+
+  const refreshAccessToken = async () => {
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
+
+    refreshPromiseRef.current = (async () => {
+      const response = await apiFetch("/auth/refresh", { method: "POST" });
+      syncAuthSession(response.access_token, response.user);
+      handleVerificationRequirement(response);
+      return response;
+    })()
+      .catch((error) => {
+        resetAuthState();
+        throw error;
+      })
+      .finally(() => {
+        refreshPromiseRef.current = null;
+      });
+
+    return refreshPromiseRef.current;
+  };
+
+  const authenticatedFetch = async (
+    path,
+    options = {},
+    { accessToken = tokenRef.current, retry = true } = {},
+  ) => {
+    try {
+      return await apiFetch(path, options, accessToken);
+    } catch (error) {
+      if (retry && error.status === 401) {
+        const refreshed = await refreshAccessToken();
+        return apiFetch(path, options, refreshed.access_token);
+      }
+      if (error.status === 403 && /verify your email/i.test(error.message || "")) {
+        setAuthNotice({ message: error.message, kind: "warning" });
+      }
+      throw error;
+    }
+  };
+
+  const authenticatedRawFetch = async (
+    path,
+    options = {},
+    { accessToken = tokenRef.current, retry = true } = {},
+  ) => {
+    const headers = { ...(options.headers ?? {}) };
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      credentials: "include",
+      ...options,
+      headers,
+    });
+    if (retry && response.status === 401) {
+      const refreshed = await refreshAccessToken();
+      return authenticatedRawFetch(path, options, {
+        accessToken: refreshed.access_token,
+        retry: false,
+      });
+    }
+    return response;
+  };
 
   const normalizeStoredRolloutPlans = (storedPlanner) => {
     const rawPlans = Array.isArray(storedPlanner?.rollouts)
@@ -137,7 +257,11 @@ export function AppProvider({ children }) {
 
     setIntegrationStatus("loading");
     try {
-      const response = await apiFetch("/status", { method: "GET" }, accessToken);
+      const response = await authenticatedFetch(
+        "/status",
+        { method: "GET" },
+        { accessToken },
+      );
       const platforms = Array.isArray(response?.connected_platform_ids)
         ? response.connected_platform_ids.map((platform) => String(platform).trim()).filter(Boolean)
         : [];
@@ -166,16 +290,50 @@ export function AppProvider({ children }) {
   };
 
   useEffect(() => {
-    try {
-      const storedAuth = readStoredAuth();
-      const storedToken = storedAuth.token ?? "";
-      const storedUser = storedAuth.user ?? null;
-      setToken(storedToken);
-      setUser(storedUser);
-      setBootStatus(storedToken ? "loading" : "ready");
-    } catch {
-      setBootStatus("ready");
+    tokenRef.current = token;
+  }, [token]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreSession() {
+      try {
+        const storedAuth = readStoredAuth();
+        const storedToken = storedAuth.token ?? "";
+        const storedUser = storedAuth.user ?? null;
+        if (storedUser) {
+          setUser(storedUser);
+        }
+        if (storedToken) {
+          tokenRef.current = storedToken;
+          setToken(storedToken);
+          const me = await authenticatedFetch(
+            "/me",
+            { method: "GET" },
+            { accessToken: storedToken },
+          );
+          if (cancelled) return;
+          syncAuthSession(storedToken, me);
+        } else {
+          const refreshed = await refreshAccessToken();
+          if (cancelled) return;
+          syncAuthSession(refreshed.access_token, refreshed.user);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          resetAuthState();
+        }
+      } finally {
+        if (!cancelled) {
+          setBootStatus("ready");
+        }
+      }
     }
+
+    restoreSession();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -213,8 +371,11 @@ export function AppProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    if (bootStatus === "loading") {
+      return undefined;
+    }
+
     if (!token) {
-      setBootStatus("ready");
       setBillingSummary(null);
       setBillingStatus("idle");
       setBillingError("");
@@ -243,28 +404,27 @@ export function AppProvider({ children }) {
 
     async function bootstrap() {
       try {
-        const me = await apiFetch("/me", { method: "GET" }, token);
+        const me = await authenticatedFetch("/me", { method: "GET" });
         if (cancelled) return;
         setUser(me);
         persistAuth(token, me);
-        const billing = await apiFetch("/billing/me", { method: "GET" }, token);
+        const billing = await authenticatedFetch("/billing/me", { method: "GET" });
         if (!cancelled) {
           setBillingSummary(billing);
           setBillingStatus("success");
           setBillingError("");
         }
         try {
-          const profile = await apiFetch("/me/voice-profile", { method: "GET" }, token);
+          const profile = await authenticatedFetch("/me/voice-profile", { method: "GET" });
           if (!cancelled) setVoiceProfile(profile);
         } catch (error) {
           if (!cancelled && error.status !== 404) setProfileError(error.message);
         }
-        await refreshIntegrationStatus({ accessToken: token });
+        await refreshIntegrationStatus();
         try {
-          const scheduled = await apiFetch(
+          const scheduled = await authenticatedFetch(
             "/scheduled-posts?status=scheduled&limit=20",
             { method: "GET" },
-            token,
           );
           if (!cancelled) {
             setScheduledPosts(Array.isArray(scheduled) ? scheduled : []);
@@ -279,7 +439,9 @@ export function AppProvider({ children }) {
         }
       } catch (error) {
         if (!cancelled) {
-          clearAuthState();
+          if (error.status === 401) {
+            resetAuthState();
+          }
           setAuthError(error.message);
           setBillingStatus("error");
           setBillingError(error.message);
@@ -293,7 +455,7 @@ export function AppProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [bootStatus, token]);
 
   useEffect(() => {
     if (!user) return;
@@ -371,10 +533,9 @@ export function AppProvider({ children }) {
 
     async function pollJob() {
       try {
-        const job = await apiFetch(
+        const job = await authenticatedFetch(
           `/generation-jobs/${generateJob.id}`,
           { method: "GET" },
-          token,
         );
         if (cancelled) return;
         setGenerateJob(job);
@@ -458,18 +619,43 @@ export function AppProvider({ children }) {
 
   const handleAuthChange = (field, value) => {
     setAuthForm((current) => ({ ...current, [field]: value }));
+    if (authError) setAuthError("");
+    if (authMessage) setAuthNotice();
+    if (googleAuthError) setGoogleAuthError("");
   };
 
   const handleAuthSubmit = async (event) => {
     event.preventDefault();
-    if (!authForm.email.trim() || !authForm.password.trim()) {
+    if (!authForm.email.trim()) {
+      setAuthError("Enter your email address.");
+      return;
+    }
+    if (authMode !== "forgot" && !authForm.password.trim()) {
       setAuthError("Enter your email and password.");
       return;
     }
 
     setAuthStatus("loading");
     setAuthError("");
+    setAuthNotice();
     try {
+      if (authMode === "forgot") {
+        const response = await apiFetch("/auth/password/forgot", {
+          method: "POST",
+          body: JSON.stringify({ email: authForm.email.trim() }),
+        });
+        setAuthStatus("success");
+        setAuthNotice({
+          message: response.message,
+          kind: "success",
+          actionUrl: response.password_reset_preview_url || "",
+          actionLabel: response.password_reset_preview_url
+            ? "Open reset link"
+            : "",
+        });
+        return;
+      }
+
       const endpoint = authMode === "register" ? "/auth/register" : "/auth/login";
       const payload = {
         email: authForm.email.trim(),
@@ -482,9 +668,8 @@ export function AppProvider({ children }) {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      persistAuth(response.access_token, response.user);
-      setToken(response.access_token);
-      setUser(response.user);
+      syncAuthSession(response.access_token, response.user);
+      handleVerificationRequirement(response);
       setAuthStatus("success");
       setAuthForm({
         email: authForm.email,
@@ -497,10 +682,99 @@ export function AppProvider({ children }) {
     }
   };
 
-  const handleLogout = () => {
-    clearAuthState();
+  const handleGoogleSignIn = async (idToken) => {
+    if (!idToken) {
+      setGoogleAuthError("Google sign-in did not return a valid credential.");
+      return;
+    }
+
+    setGoogleAuthStatus("loading");
+    setGoogleAuthError("");
+    setAuthNotice();
+    try {
+      const response = await apiFetch("/auth/google", {
+        method: "POST",
+        body: JSON.stringify({ id_token: idToken }),
+      });
+      syncAuthSession(response.access_token, response.user);
+      handleVerificationRequirement(response);
+      setGoogleAuthStatus("success");
+    } catch (error) {
+      setGoogleAuthStatus("error");
+      setGoogleAuthError(error.message);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!tokenRef.current) return;
+    setVerificationStatus("loading");
+    try {
+      const response = await authenticatedFetch("/auth/verify-email/request", {
+        method: "POST",
+      });
+      setVerificationStatus("success");
+      setAuthNotice({
+        message: response.email_verification_required
+          ? "We sent another verification email."
+          : "Your email is already verified.",
+        kind: response.email_verification_required ? "success" : "info",
+        actionUrl: response.email_verification_preview_url || "",
+        actionLabel: response.email_verification_preview_url
+          ? "Open verification link"
+          : "",
+      });
+    } catch (error) {
+      setVerificationStatus("error");
+      setAuthNotice({ message: error.message, kind: "error" });
+      throw error;
+    }
+  };
+
+  const handleVerifyEmailToken = async (tokenValue) => {
+    const response = await apiFetch("/auth/verify-email/confirm", {
+      method: "POST",
+      body: JSON.stringify({ token: tokenValue }),
+    });
+    if (user && response.id === user.id && tokenRef.current) {
+      syncAuthSession(tokenRef.current, response);
+    }
+    setAuthNotice({
+      message: "Email verified. Billing, integrations, and publishing are now unlocked.",
+      kind: "success",
+    });
+    return response;
+  };
+
+  const handlePasswordReset = async ({ token: resetToken, password }) => {
+    const response = await apiFetch("/auth/password/reset", {
+      method: "POST",
+      body: JSON.stringify({ token: resetToken, password }),
+    });
+    resetAuthState();
+    setAuthMode("login");
+    setAuthForm({
+      email: response.email || authForm.email,
+      password: "",
+      displayName: "",
+    });
+    setAuthNotice({
+      message: "Password updated. Sign in with your new password.",
+      kind: "success",
+    });
+    return response;
+  };
+
+  const handleLogout = async () => {
+    try {
+      await apiFetch("/auth/logout", { method: "POST" });
+    } catch {}
+    resetAuthState();
     setAuthStatus("idle");
     setAuthError("");
+    setAuthNotice();
+    setGoogleAuthStatus("idle");
+    setGoogleAuthError("");
+    setVerificationStatus("idle");
     setProfileError("");
     setLinkedinPublishStatus("idle");
     setLinkedinPublishError("");
@@ -597,9 +871,8 @@ export function AppProvider({ children }) {
 
         const formData = new FormData();
         formData.append("file", uploadedVideo);
-        const response = await fetch(`${API_BASE_URL}/upload-video`, {
+        const response = await authenticatedRawFetch("/upload-video", {
           method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData,
         });
         const data = await response.json().catch(() => ({}));
@@ -630,11 +903,10 @@ export function AppProvider({ children }) {
         target_assets: selectedAssets,
         ...(uploadedVideoMetadata || {}),
       };
-      const job = await apiFetch(
-        "/generation-jobs",
-        { method: "POST", body: JSON.stringify(payload) },
-        token,
-      );
+        const job = await authenticatedFetch(
+          "/generation-jobs",
+          { method: "POST", body: JSON.stringify(payload) },
+        );
       setGenerateJob(job);
     } catch (error) {
       setGenerateStatus("error");
@@ -646,10 +918,9 @@ export function AppProvider({ children }) {
     setProfileStatus("loading");
     setProfileError("");
     try {
-      const profile = await apiFetch(
+      const profile = await authenticatedFetch(
         path,
         { method: "POST", body: JSON.stringify(payload) },
-        token,
       );
       setVoiceProfile(profile);
       setProfileStatus("success");
@@ -839,11 +1110,10 @@ export function AppProvider({ children }) {
     setLinkedinPublishResult(null);
 
     try {
-      const response = await apiFetch(
-        "/linkedin/publish",
-        { method: "POST", body: JSON.stringify({ text }) },
-        token,
-      );
+      const response = await authenticatedFetch("/linkedin/publish", {
+        method: "POST",
+        body: JSON.stringify({ text }),
+      });
       setLinkedinPublishResult({ assetId: asset.id, ...response });
       setLinkedinPublishStatus("success");
     } catch (error) {
@@ -869,11 +1139,10 @@ export function AppProvider({ children }) {
     setInstagramPublishResult(null);
 
     try {
-      const response = await apiFetch(
-        "/instagram/publish",
-        { method: "POST", body: JSON.stringify({ asset }) },
-        token,
-      );
+      const response = await authenticatedFetch("/instagram/publish", {
+        method: "POST",
+        body: JSON.stringify({ asset }),
+      });
       setInstagramPublishResult({ assetId: asset.id, ...response });
       setInstagramPublishStatus("success");
     } catch (error) {
@@ -900,11 +1169,10 @@ export function AppProvider({ children }) {
     setGhostPublishResult(null);
 
     try {
-      const response = await apiFetch(
-        "/ghost/publish",
-        { method: "POST", body: JSON.stringify({ asset }) },
-        token,
-      );
+      const response = await authenticatedFetch("/ghost/publish", {
+        method: "POST",
+        body: JSON.stringify({ asset }),
+      });
       setGhostPublishResult({ assetId: asset.id, ...response });
       setGhostPublishStatus("success");
     } catch (error) {
@@ -928,10 +1196,9 @@ export function AppProvider({ children }) {
     }
 
     try {
-      const response = await apiFetch(
+      const response = await authenticatedFetch(
         "/scheduled-posts?status=scheduled&limit=20",
         { method: "GET" },
-        token,
       );
       const nextPosts = Array.isArray(response) ? response : [];
       setScheduledPosts(nextPosts);
@@ -968,7 +1235,7 @@ export function AppProvider({ children }) {
 
     const { platform, payload } = buildScheduledPostPayload(asset);
     ensurePlatformConnected(platform);
-    return apiFetch(
+    return authenticatedFetch(
       "/scheduled-posts",
       {
         method: "POST",
@@ -979,7 +1246,6 @@ export function AppProvider({ children }) {
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
         }),
       },
-      token,
     );
   };
 
@@ -1121,7 +1387,9 @@ export function AppProvider({ children }) {
     setCancelScheduledPostId(postId);
     setCancelScheduledPostError("");
     try {
-      await apiFetch("/scheduled-posts/" + postId + "/cancel", { method: "POST" }, token);
+      await authenticatedFetch("/scheduled-posts/" + postId + "/cancel", {
+        method: "POST",
+      });
       setScheduledPosts((current) => current.filter((post) => post.id !== postId));
     } catch (error) {
       setCancelScheduledPostError(error.message);
@@ -1137,7 +1405,7 @@ export function AppProvider({ children }) {
     setBillingError("");
     try {
       const [summary, plans] = await Promise.all([
-        apiFetch("/billing/me", { method: "GET" }, token),
+        authenticatedFetch("/billing/me", { method: "GET" }),
         billingPlans.length ? Promise.resolve(billingPlans) : apiFetch("/billing/plans", { method: "GET" }),
       ]);
       setBillingSummary(summary);
@@ -1161,13 +1429,12 @@ export function AppProvider({ children }) {
     setBillingCheckoutError("");
 
     try {
-      const checkoutConfig = await apiFetch(
+      const checkoutConfig = await authenticatedFetch(
         "/billing/checkout",
         {
           method: "POST",
           body: JSON.stringify({ plan_code: planCode }),
         },
-        token,
       );
       await openHostedCheckout(checkoutConfig);
       setBillingCheckoutStatus("success");
@@ -1188,7 +1455,9 @@ export function AppProvider({ children }) {
     setBillingCancelError("");
 
     try {
-      const summary = await apiFetch("/billing/cancel", { method: "POST" }, token);
+      const summary = await authenticatedFetch("/billing/cancel", {
+        method: "POST",
+      });
       setBillingSummary(summary);
       setBillingStatus("success");
       setBillingError("");
@@ -1213,9 +1482,20 @@ export function AppProvider({ children }) {
       authForm,
       authStatus,
       authError,
+      authMessage,
+      authMessageKind,
+      authActionUrl,
+      authActionLabel,
+      googleAuthStatus,
+      googleAuthError,
+      verificationStatus,
       bootStatus,
       handleAuthChange,
       handleAuthSubmit,
+      handleGoogleSignIn,
+      handleResendVerification,
+      handleVerifyEmailToken,
+      handlePasswordReset,
       handleLogout,
       profileMode,
       setProfileMode,
@@ -1265,8 +1545,6 @@ export function AppProvider({ children }) {
       handlePublishLinkedInAsset,
       handlePublishInstagramAsset,
       handlePublishGhostAsset,
-      connectedPlatformIds,
-      integrationStatus,
       refreshIntegrationStatus,
       refreshScheduledPosts,
       handleScheduleAsset,
@@ -1344,6 +1622,10 @@ export function AppProvider({ children }) {
       activeBlockId,
       authError,
       authForm,
+      authActionLabel,
+      authActionUrl,
+      authMessage,
+      authMessageKind,
       authMode,
       authStatus,
       bootStatus,
@@ -1360,6 +1642,8 @@ export function AppProvider({ children }) {
       billingPlans,
       billingStatus,
       billingSummary,
+      googleAuthError,
+      googleAuthStatus,
       linkedinPublishError,
       linkedinPublishResult,
       linkedinPublishStatus,
@@ -1403,6 +1687,7 @@ export function AppProvider({ children }) {
       rolloutScheduleStatus,
       youtubeText,
       youtubeTranscriptText,
+      verificationStatus,
     ],
   );
 
