@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import AuthStatusLayout from "./AuthStatusLayout";
 import { useAppState } from "../app/AppProvider";
 
@@ -11,6 +12,7 @@ export default function VerifyEmailPage({ initialToken = "" }) {
     handleResendVerification,
     handleVerifyEmailToken,
   } = useAppState();
+  const router = useRouter();
   const verifyHandlerRef = useRef(handleVerifyEmailToken);
   const [status, setStatus] = useState(initialToken ? "loading" : "idle");
   const [message, setMessage] = useState(
@@ -43,7 +45,12 @@ export default function VerifyEmailPage({ initialToken = "" }) {
           return;
         }
         setStatus("success");
-        setMessage("Your email has been verified. Billing, publishing, and integrations are now available.");
+        setMessage("Your email has been verified and you are now signed in. Redirecting you back into the app.");
+        window.setTimeout(() => {
+          if (!cancelled) {
+            router.replace("/");
+          }
+        }, 1200);
       })
       .catch((nextError) => {
         if (cancelled) {
@@ -56,7 +63,7 @@ export default function VerifyEmailPage({ initialToken = "" }) {
     return () => {
       cancelled = true;
     };
-  }, [initialToken]);
+  }, [initialToken, router]);
 
   const handleResendClick = async () => {
     setError("");

@@ -28,8 +28,15 @@ export async function apiFetch(path, options = {}, token = "") {
   if (response.status === 204) return {};
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.detail || "Request failed.");
+    const detail = data?.detail;
+    const message =
+      typeof detail === "string"
+        ? detail
+        : detail?.message || data?.message || "Request failed.";
+    const error = new Error(message);
     error.status = response.status;
+    error.payload = data;
+    error.detail = detail;
     throw error;
   }
   return data;

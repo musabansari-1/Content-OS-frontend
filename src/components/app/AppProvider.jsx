@@ -668,8 +668,22 @@ export function AppProvider({ children }) {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      syncAuthSession(response.access_token, response.user);
-      handleVerificationRequirement(response);
+      if (authMode === "register") {
+        resetAuthState();
+        setAuthNotice({
+          message:
+            response.message ||
+            "Check your email to verify your account. Once you confirm it, we will sign you in automatically.",
+          kind: "success",
+          actionUrl: response.email_verification_preview_url || "",
+          actionLabel: response.email_verification_preview_url
+            ? "Open verification link"
+            : "",
+        });
+      } else {
+        syncAuthSession(response.access_token, response.user);
+        handleVerificationRequirement(response);
+      }
       setAuthStatus("success");
       setAuthForm({
         email: authForm.email,
@@ -678,6 +692,22 @@ export function AppProvider({ children }) {
       });
     } catch (error) {
       setAuthStatus("error");
+      if (
+        authMode === "login" &&
+        error.status === 403 &&
+        error.payload?.detail?.email_verification_required
+      ) {
+        setAuthNotice({
+          message:
+            error.payload.detail.message ||
+            "Verify your email before logging in. We sent you a fresh verification link.",
+          kind: "warning",
+          actionUrl: error.payload.detail.email_verification_preview_url || "",
+          actionLabel: error.payload.detail.email_verification_preview_url
+            ? "Open verification link"
+            : "",
+        });
+      }
       setAuthError(error.message);
     }
   };
@@ -735,11 +765,9 @@ export function AppProvider({ children }) {
       method: "POST",
       body: JSON.stringify({ token: tokenValue }),
     });
-    if (user && response.id === user.id && tokenRef.current) {
-      syncAuthSession(tokenRef.current, response);
-    }
+    syncAuthSession(response.access_token, response.user);
     setAuthNotice({
-      message: "Email verified. Billing, integrations, and publishing are now unlocked.",
+      message: "Email verified. You are now signed in and ready to continue.",
       kind: "success",
     });
     return response;
