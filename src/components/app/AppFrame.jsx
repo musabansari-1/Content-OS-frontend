@@ -16,11 +16,28 @@ function AuthNotice({
     return null;
   }
 
+  const toneClasses = {
+    info: "border-sky-400/25 bg-sky-400/10 text-sky-50",
+    success: "border-emerald-400/25 bg-emerald-400/10 text-emerald-50",
+    warning: "border-amber-300/30 bg-amber-300/10 text-amber-50",
+    error: "border-rose-400/25 bg-rose-400/10 text-rose-50",
+  };
+
   return (
-    <div className={`auth-notice auth-notice-${kind}`}>
-      <p>{message}</p>
+    <div
+      className={[
+        "rounded-3xl border px-4 py-3 text-sm leading-6 shadow-[0_18px_60px_rgba(0,0,0,0.18)]",
+        toneClasses[kind] || toneClasses.info,
+      ].join(" ")}
+    >
+      <p className="m-0">{message}</p>
       {actionUrl && actionLabel ? (
-        <a href={actionUrl} rel="noreferrer" target="_blank">
+        <a
+          className="mt-2 inline-flex text-sm font-semibold text-white underline decoration-white/35 underline-offset-4 transition hover:decoration-white"
+          href={actionUrl}
+          rel="noreferrer"
+          target="_blank"
+        >
           {actionLabel}
         </a>
       ) : null}
@@ -33,13 +50,14 @@ function GoogleSignInButton({ authMode }) {
   const buttonRef = useRef(null);
   const callbackRef = useRef(handleGoogleSignIn);
   const [scriptError, setScriptError] = useState("");
+  const shouldShowGoogle = Boolean(GOOGLE_CLIENT_ID) && authMode !== "forgot";
 
   useEffect(() => {
     callbackRef.current = handleGoogleSignIn;
   }, [handleGoogleSignIn]);
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || authMode === "forgot") {
+    if (!shouldShowGoogle) {
       return undefined;
     }
 
@@ -53,6 +71,10 @@ function GoogleSignInButton({ authMode }) {
 
       setScriptError("");
       buttonRef.current.innerHTML = "";
+      const buttonWidth = Math.min(
+        Math.max(Math.round(buttonRef.current.getBoundingClientRect().width || 320), 240),
+        360,
+      );
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: ({ credential }) => {
@@ -63,8 +85,8 @@ function GoogleSignInButton({ authMode }) {
         theme: "outline",
         size: "large",
         shape: "pill",
-        text: authMode === "login" ? "signin_with" : "signup_with",
-        width: 360,
+        text: "continue_with",
+        width: buttonWidth,
       });
     };
 
@@ -102,20 +124,23 @@ function GoogleSignInButton({ authMode }) {
       script?.removeEventListener("load", handleLoad);
       script?.removeEventListener("error", handleError);
     };
-  }, [authMode]);
+  }, [shouldShowGoogle]);
 
-  if (!GOOGLE_CLIENT_ID || authMode === "forgot") {
+  if (!shouldShowGoogle) {
     return null;
   }
 
   return (
-    <div className="google-auth-block">
-      <div className="google-auth-button" ref={buttonRef} />
+    <div className="grid gap-3">
+      <div
+        className="flex min-h-[44px] justify-center [&>div]:!w-full [&_iframe]:mx-auto"
+        ref={buttonRef}
+      />
       {googleAuthStatus === "loading" ? (
-        <p className="muted-copy auth-inline-copy">Signing in with Google...</p>
+        <p className="m-0 text-sm text-[#9aa6b8]">Signing in with Google...</p>
       ) : null}
-      {scriptError ? <p className="error">{scriptError}</p> : null}
-      {googleAuthError ? <p className="error">{googleAuthError}</p> : null}
+      {scriptError ? <p className="m-0 text-sm text-rose-300">{scriptError}</p> : null}
+      {googleAuthError ? <p className="m-0 text-sm text-rose-300">{googleAuthError}</p> : null}
     </div>
   );
 }
@@ -135,57 +160,88 @@ function AuthCard({ authSectionRef }) {
     handleAuthSubmit,
   } = useAppState();
   const isForgotMode = authMode === "forgot";
+  const toggleBaseClasses =
+    "rounded-full px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#ff8a3d]/40";
+  const fieldClasses =
+    "w-full rounded-2xl border border-white/10 bg-[#101a28] px-4 py-3 text-sm text-white placeholder:text-[#718096] focus:border-[#ff8a3d]/45 focus:outline-none focus:ring-2 focus:ring-[#ff8a3d]/20";
 
   return (
     <section
-      className="panel auth-panel landing-auth-card"
+      className="rounded-[2rem] border border-white/10 bg-[#08131f]/92 p-6 text-white shadow-[0_30px_90px_rgba(0,0,0,0.35)] backdrop-blur"
       id="auth"
       ref={authSectionRef}
     >
-      <div className="landing-auth-copy">
-        <p className="eyebrow">Start now</p>
-        <h2>
+      <div className="mb-6">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f2a666]">
+          Start now
+        </p>
+        <h2 className="m-0 text-[1.9rem] font-semibold tracking-tight text-white">
           {isForgotMode
             ? "Reset your password"
             : authMode === "login"
               ? "Welcome back"
-              : "Create your workspace"}
+              : "Create your content workspace"}
         </h2>
-        <p className="muted-copy">
+        <p className="mt-3 text-sm leading-7 text-[#9aa6b8]">
           {isForgotMode
             ? "Enter your email and we will send you a secure reset link."
             : authMode === "login"
-            ? "Sign in to continue generating assets inside your saved workspace."
-            : "Create an account so your voice profile, outputs, and billing history stay attached to you."}
+            ? "Sign in to keep generating, editing, scheduling, and publishing from the same workspace."
+            : "Sign up to save your voice profile, keep every generated asset in one place, and unlock billing and publishing when you are ready."}
         </p>
       </div>
-      <div className="auth-toggle">
-        <button
-          className={authMode === "login" ? "active" : ""}
-          onClick={() => setAuthMode("login")}
-          type="button"
-        >
-          Login
-        </button>
-        <button
-          className={authMode === "register" ? "active" : ""}
-          onClick={() => setAuthMode("register")}
-          type="button"
-        >
-          Register
-        </button>
-      </div>
-      <GoogleSignInButton authMode={authMode} />
+
       {!isForgotMode ? (
-        <div className="auth-divider">
-          <span>or use email</span>
+        <div className="mb-5 inline-flex rounded-full border border-white/10 bg-white/5 p-1">
+          <button
+            className={[
+              toggleBaseClasses,
+              authMode === "login"
+                ? "bg-white text-[#0c1420] shadow-sm"
+                : "text-[#9aa6b8] hover:text-white",
+            ].join(" ")}
+            onClick={() => setAuthMode("login")}
+            type="button"
+          >
+            Log in
+          </button>
+          <button
+            className={[
+              toggleBaseClasses,
+              authMode === "register"
+                ? "bg-[#ff8a3d] text-[#0c1420] shadow-[0_12px_28px_rgba(255,138,61,0.25)]"
+                : "text-[#9aa6b8] hover:text-white",
+            ].join(" ")}
+            onClick={() => setAuthMode("register")}
+            type="button"
+          >
+            Sign up
+          </button>
         </div>
       ) : null}
-      <form className="stack-form" onSubmit={handleAuthSubmit}>
+
+      {isForgotMode ? (
+        <div className="mb-5 inline-flex rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#c9d2df]">
+          Password reset
+        </div>
+      ) : null}
+
+      <GoogleSignInButton authMode={authMode} />
+
+      {!isForgotMode ? (
+        <div className="my-5 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#74839a]">
+          <span className="h-px flex-1 bg-white/10" />
+          <span>Or continue with email</span>
+          <span className="h-px flex-1 bg-white/10" />
+        </div>
+      ) : null}
+
+      <form className="mt-5 flex flex-col gap-4" onSubmit={handleAuthSubmit}>
         {authMode === "register" ? (
-          <label className="field">
-            <span>Display name</span>
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-[#d7deea]">Display name</span>
             <input
+              className={fieldClasses}
               type="text"
               placeholder="Aman"
               value={authForm.displayName}
@@ -193,9 +249,10 @@ function AuthCard({ authSectionRef }) {
             />
           </label>
         ) : null}
-        <label className="field">
-          <span>Email</span>
+        <label className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-[#d7deea]">Email</span>
           <input
+            className={fieldClasses}
             type="email"
             placeholder="you@example.com"
             value={authForm.email}
@@ -203,9 +260,10 @@ function AuthCard({ authSectionRef }) {
           />
         </label>
         {!isForgotMode ? (
-          <label className="field">
-            <span>Password</span>
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-[#d7deea]">Password</span>
             <input
+              className={fieldClasses}
               type="password"
               placeholder="At least 8 characters"
               value={authForm.password}
@@ -214,7 +272,7 @@ function AuthCard({ authSectionRef }) {
           </label>
         ) : null}
         <button
-          className="primary-button"
+          className="mt-2 inline-flex items-center justify-center rounded-full bg-[#ff8a3d] px-5 py-3 text-sm font-semibold text-[#0c1420] shadow-[0_18px_40px_rgba(255,138,61,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff9e59] disabled:cursor-wait disabled:opacity-70"
           type="submit"
           disabled={authStatus === "loading"}
         >
@@ -222,41 +280,35 @@ function AuthCard({ authSectionRef }) {
             ? isForgotMode
               ? "Sending reset link..."
               : authMode === "login"
-              ? "Signing in..."
-              : "Creating account..."
+                ? "Signing in..."
+                : "Creating account..."
             : isForgotMode
               ? "Send reset link"
               : authMode === "login"
-              ? "Login"
-              : "Create account"}
+                ? "Log in"
+                : "Create account"}
         </button>
       </form>
-      <div className="auth-subactions">
-        {isForgotMode ? (
-          <button
-            className="text-link-button"
-            onClick={() => setAuthMode("login")}
-            type="button"
-          >
-            Back to login
-          </button>
-        ) : (
-          <button
-            className="text-link-button"
-            onClick={() => setAuthMode("forgot")}
-            type="button"
-          >
-            Forgot password?
-          </button>
-        )}
+
+      <div className="mt-4 flex justify-end">
+        <button
+          className="text-sm font-semibold text-[#f2a666] transition hover:text-[#ffd2ad]"
+          onClick={() => setAuthMode(isForgotMode ? "login" : "forgot")}
+          type="button"
+        >
+          {isForgotMode ? "Back to login" : "Forgot password?"}
+        </button>
       </div>
-      <AuthNotice
-        actionLabel={authActionLabel}
-        actionUrl={authActionUrl}
-        kind={authMessageKind}
-        message={authMessage}
-      />
-      {authError ? <p className="error">{authError}</p> : null}
+
+      <div className="mt-5 space-y-3">
+        <AuthNotice
+          actionLabel={authActionLabel}
+          actionUrl={authActionUrl}
+          kind={authMessageKind}
+          message={authMessage}
+        />
+        {authError ? <p className="m-0 text-sm text-rose-300">{authError}</p> : null}
+      </div>
     </section>
   );
 }
@@ -264,6 +316,66 @@ function AuthCard({ authSectionRef }) {
 function AuthScreen() {
   const authSectionRef = useRef(null);
   const currentYear = new Date().getFullYear();
+  const productPillars = [
+    {
+      kicker: "Voice",
+      title: "Save a reusable voice profile",
+      copy:
+        "Build it from writing samples, pasted transcripts, or YouTube sources, then reuse that profile across new generations.",
+    },
+    {
+      kicker: "Inputs",
+      title: "Start from video, YouTube, or transcript",
+      copy:
+        "Use a YouTube URL, upload a video, or paste a transcript when a source cannot be fetched automatically.",
+    },
+    {
+      kicker: "Assets",
+      title: "Generate a content pack",
+      copy:
+        "Select the asset types you need and add every result to a saved workspace instead of overwriting old outputs.",
+    },
+    {
+      kicker: "Workspace",
+      title: "Edit, organize, and export",
+      copy:
+        "Open generated assets, edit individual blocks, move work through Draft, Ready, and Published lanes, and export the workspace.",
+    },
+    {
+      kicker: "Planning",
+      title: "Plan a five-week rollout",
+      copy:
+        "Review scheduled posts, save draft rollouts, and bulk schedule ready assets from a generation batch.",
+    },
+    {
+      kicker: "Publishing",
+      title: "Publish where the app is wired",
+      copy:
+        "Connect platforms from the integrations screen and publish supported assets to destinations such as LinkedIn, Instagram, and Ghost.",
+    },
+  ];
+  const workflowSteps = [
+    {
+      step: "01",
+      title: "Capture your style",
+      copy: "Save examples once so future assets have a clearer voice direction.",
+    },
+    {
+      step: "02",
+      title: "Add the source",
+      copy: "Paste a YouTube link, upload a video, or provide the transcript directly.",
+    },
+    {
+      step: "03",
+      title: "Generate the pack",
+      copy: "Choose the target assets and let the job build a reusable batch.",
+    },
+    {
+      step: "04",
+      title: "Review and ship",
+      copy: "Edit, mark ready, schedule, publish, download video clips, or export the work.",
+    },
+  ];
 
   const scrollToAuth = (event) => {
     event.preventDefault();
@@ -275,13 +387,8 @@ function AuthScreen() {
 
   return (
     <div className="relative min-h-screen bg-[#0f141c] text-[#f6efe7]">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-[-120px] top-[-120px] h-[360px] w-[360px] rounded-full bg-[#c98f65]/20 blur-[90px]" />
-        <div className="absolute bottom-[-140px] right-[-120px] h-[380px] w-[380px] rounded-full bg-[#8fb8b2]/16 blur-[100px]" />
-      </div>
-
       <main className="relative z-10 mx-auto w-full max-w-7xl px-5 py-6 sm:px-8 lg:px-10">
-        <header className="landing-topbar">
+        <header className="sticky top-4 z-30 flex flex-col gap-4 rounded-[1.6rem] border border-white/10 bg-[#08111c]/82 px-4 py-4 backdrop-blur xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-[#d8a36f] to-[#8fb8b2] font-bold text-[#111820] shadow-lg shadow-[#d8a36f]/20">
               CB
@@ -297,325 +404,412 @@ function AuthScreen() {
             </div>
           </div>
 
-          <nav className="landing-topnav text-sm text-[#c8beb4]">
-            <a className="transition hover:text-white" href="#product">
-              Product
+          <nav className="flex flex-wrap items-center gap-2 rounded-[1.2rem] border border-white/8 bg-white/4 p-2 text-sm text-[#c8beb4]">
+            <a
+              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/8 hover:text-white"
+              href="#features"
+            >
+              Features
             </a>
-            <a className="transition hover:text-white" href="#workflow">
+            <a
+              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/8 hover:text-white"
+              href="#workflow"
+            >
               Workflow
             </a>
-            <a className="transition hover:text-white" href="#pricing">
-              What&apos;s next
+            <a
+              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/8 hover:text-white"
+              href="#publishing"
+            >
+              Publishing
             </a>
-            <Link className="transition hover:text-white" href="/privacy">
+            <a
+              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/8 hover:text-white"
+              href="#plans"
+            >
+              Plans
+            </a>
+            <Link
+              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/8 hover:text-white"
+              href="/privacy"
+            >
               Privacy
             </Link>
-            <Link className="transition hover:text-white" href="/terms">
+            <Link
+              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/8 hover:text-white"
+              href="/terms"
+            >
               Terms
             </Link>
-            <Link className="transition hover:text-white" href="/support">
+            <Link
+              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/8 hover:text-white"
+              href="/support"
+            >
               Contact Support
             </Link>
             <a
-              className="transition hover:text-white"
+              className="rounded-full bg-[#ff8a3d] px-4 py-2 font-semibold text-[#0b1320] transition hover:bg-[#ff9e59]"
               href="#auth"
               onClick={scrollToAuth}
             >
-              Login
+              Log in
             </a>
           </nav>
         </header>
 
-        <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 shadow-2xl shadow-black/30 backdrop-blur sm:p-8 lg:p-10">
-          <div className="grid items-start gap-10 lg:grid-cols-[1.05fr_0.95fr]">
-            <section className="pt-4">
-              <p className="mb-4 text-xs font-semibold uppercase tracking-[0.28em] text-[#d8a36f]">
-                For creators and lean teams
-              </p>
-
-              <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl">
-                Repurpose one video into weeks of content.
-                <span className="mt-3 block text-[#d8c7b5]">
-                  Built for creators who publish everywhere.
-                </span>
-              </h1>
-
-              <p className="mt-6 max-w-2xl text-base leading-8 text-[#c8beb4] sm:text-lg">
-                {APP_NAME} transforms videos, transcripts, and ideas into
-                platform-specific content while keeping your voice, drafts, and
-                assets organized in one workspace.
-              </p>
-
-              <div className="mt-7 flex flex-wrap gap-3">
-                {[
-                  "Saved voice profile",
-                  "Reusable workspace",
-                  "Multi-asset generation",
-                  "Platform-ready outputs",
-                ].map((item) => (
-                  <span
-                    key={item}
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-[#d8c7b5]"
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
-
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a
-                  className="rounded-full bg-[#d8a36f] px-6 py-3 text-sm font-semibold text-[#111820] shadow-lg shadow-[#d8a36f]/20 transition hover:-translate-y-0.5 hover:bg-[#e4b47f]"
-                  href="#auth"
-                  onClick={scrollToAuth}
-                >
-                  Get started
-                </a>
-
-                <a
-                  className="rounded-full border border-white/10 bg-white/[0.04] px-6 py-3 text-sm font-semibold text-[#f6efe7] transition hover:-translate-y-0.5 hover:bg-white/[0.07]"
-                  href="#product"
-                >
-                  See how it works
-                </a>
-              </div>
-
-              <div className="mt-10 grid max-w-2xl gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-[#151b25]/80 p-5">
-                  <strong className="block text-sm text-white">One source</strong>
-                  <span className="mt-1 block text-sm text-[#b9aca0]">
-                    Video
-                  </span>
+        <div className="mt-6 space-y-6">
+          <section
+            id="product"
+            className="overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02)),radial-gradient(circle_at_top_left,rgba(255,138,61,0.18),transparent_32%),radial-gradient(circle_at_80%_20%,rgba(86,178,156,0.14),transparent_30%),linear-gradient(180deg,#08131f,#0a111b)] p-5 shadow-[0_34px_120px_rgba(0,0,0,0.35)] sm:p-8 lg:p-10"
+          >
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
+              <div className="grid gap-8">
+                <div className="grid gap-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#f2a666]">
+                    For creators, consultants, and lean teams
+                  </p>
+                  <h1 className="max-w-[11ch] font-['Space_Grotesk'] text-[clamp(2.8rem,6vw,5rem)] font-bold leading-[0.94] tracking-tight text-white">
+                    Create weeks of content from one strong source.
+                  </h1>
+                  <p className="max-w-3xl text-base leading-8 text-[#d8e0ea] sm:text-lg">
+                    {APP_NAME} helps you save your voice, turn videos and transcripts
+                    into platform-specific drafts, edit everything in one workspace,
+                    plan the next five weeks, and publish to the channels already
+                    supported in the product.
+                  </p>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-[#151b25]/80 p-5">
-                  <strong className="block text-sm text-white">Many outputs</strong>
-                  <span className="mt-1 block text-sm text-[#b9aca0]">
-                    Posts, threads, blogs, newsletters, short clips and more
+                <div className="flex flex-wrap gap-3">
+                  <a
+                    className="inline-flex h-11 items-center justify-center rounded-xl bg-[#ff8a3d] px-5 text-sm font-semibold leading-none text-[#0b1320] shadow-[0_18px_40px_rgba(255,138,61,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff9e59]"
+                    href="#auth"
+                    onClick={scrollToAuth}
+                  >
+                    Start free
+                  </a>
+                  <a
+                    className="inline-flex h-11 items-center justify-center rounded-xl border border-white/12 bg-white/5 px-5 text-sm font-semibold leading-none text-white transition hover:-translate-y-0.5 hover:bg-white/10"
+                    href="#workflow"
+                  >
+                    See how it works
+                  </a>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  {[
+                    "Saved voice profile",
+                    "Editable workspace",
+                    "Bulk scheduling",
+                    "Billing-ready accounts",
+                  ].map((item) => (
+                    <span
+                      key={item}
+                      className="inline-flex h-9 items-center justify-center rounded-full border border-white/10 bg-white/6 px-4 text-sm font-medium leading-none text-[#e4ecf6]"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-[1.5rem] border border-white/10 bg-[#09131f]/80 p-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8fc8b9]">
+                      Why sign up
+                    </p>
+                    <p className="mt-3 text-sm leading-7 text-[#d5ddea]">
+                      Your drafts, voice profile, workspace edits, publishing setup,
+                      and billing history stay attached to the same account.
+                    </p>
+                  </div>
+                  <div className="rounded-[1.5rem] border border-white/10 bg-[#09131f]/80 p-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8fc8b9]">
+                      Source flexibility
+                    </p>
+                    <p className="mt-3 text-sm leading-7 text-[#d5ddea]">
+                      Start with a YouTube link, an uploaded video, or a pasted
+                      transcript when you just need to get moving.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <aside className="grid gap-5">
+                <div className="rounded-[2rem] border border-white/10 bg-[#08111c]/92 p-6 shadow-[0_26px_80px_rgba(0,0,0,0.35)]">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f2a666]">
+                        Inside the product
+                      </p>
+                      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+                        One source, one workspace, many outputs
+                      </h2>
+                    </div>
+                    <span className="inline-flex rounded-full border border-[#8fc8b9]/25 bg-[#8fc8b9]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#cdeee7]">
+                      Available now
+                    </span>
+                  </div>
+
+                  <div className="mt-5 grid gap-3">
+                    <div className="rounded-[1.4rem] border border-white/8 bg-white/5 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9eacc0]">
+                        Voice profile
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-[#eef3f8]">
+                        Save samples, YouTube sources, or transcripts once and reuse
+                        that voice on future generations.
+                      </p>
+                    </div>
+
+                    <div className="rounded-[1.4rem] border border-white/8 bg-white/5 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9eacc0]">
+                        Output types
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {["LinkedIn posts", "Instagram carousels", "Blog posts", "Newsletters", "Short clips"].map((item) => (
+                          <span
+                            key={item}
+                            className="rounded-full border border-[#8fc8b9]/20 bg-[#8fc8b9]/8 px-3 py-1.5 text-xs font-medium text-[#d5efe9]"
+                          >
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {[
+                        ["Draft", "Edit and refine"],
+                        ["Ready", "Move approved work forward"],
+                        ["Scheduled", "Plan upcoming publishes"],
+                      ].map(([title, copy]) => (
+                        <div
+                          key={title}
+                          className="rounded-[1.25rem] border border-white/8 bg-[#0d1825] p-4"
+                        >
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9eacc0]">
+                            {title}
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-[#eef3f8]">{copy}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="rounded-[1.4rem] border border-amber-200/15 bg-amber-200/8 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#ffd7b4]">
+                        Publishing truth
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-[#f7ede3]">
+                        Direct publish is currently wired for supported assets on
+                        LinkedIn, Instagram, and Ghost. Some integrations are still
+                        marked coming soon.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <AuthCard authSectionRef={authSectionRef} />
+              </aside>
+            </div>
+          </section>
+
+          <section
+            id="features"
+            className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02)),#08111b] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-8"
+          >
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f2a666]">
+                  Features
+                </p>
+                <h2 className="mt-2 max-w-[12ch] font-['Space_Grotesk'] text-[clamp(2rem,4vw,3.4rem)] font-bold leading-[1] tracking-tight text-white">
+                  Everything that keeps content moving after signup.
+                </h2>
+              </div>
+              <p className="max-w-2xl text-sm leading-7 text-[#9aa6b8] sm:text-base">
+                Every card below maps to product behavior that already exists in the
+                app today, so new visitors get a strong pitch without false promises.
+              </p>
+            </div>
+
+            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {productPillars.map((feature) => (
+                <article
+                  className="rounded-[1.6rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02)),#0b1521] p-5"
+                  key={feature.title}
+                >
+                  <span className="inline-flex rounded-full border border-[#f2a666]/20 bg-[#f2a666]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#ffd7b4]">
+                    {feature.kicker}
                   </span>
+                  <h3 className="mt-4 text-xl font-semibold tracking-tight text-white">
+                    {feature.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-7 text-[#9aa6b8]">
+                    {feature.copy}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section
+            id="workflow"
+            className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02)),#08111b] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-8"
+          >
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f2a666]">
+                  Workflow
+                </p>
+                <h2 className="mt-2 max-w-[13ch] font-['Space_Grotesk'] text-[clamp(2rem,4vw,3.4rem)] font-bold leading-[1] tracking-tight text-white">
+                  Sign up once. Stop rebuilding your content process every time.
+                </h2>
+              </div>
+              <p className="max-w-2xl text-sm leading-7 text-[#9aa6b8] sm:text-base">
+                The app is structured around a simple sequence: save your voice,
+                generate assets, refine them in a workspace, and move into scheduling
+                or publishing from there.
+              </p>
+            </div>
+
+            <div className="mt-8 grid gap-4 xl:grid-cols-4">
+              {workflowSteps.map((step) => (
+                <article
+                  className="rounded-[1.6rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02)),#0b1521] p-5"
+                  key={step.step}
+                >
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8fc8b9]">
+                    Step {step.step}
+                  </span>
+                  <h3 className="mt-4 text-xl font-semibold tracking-tight text-white">
+                    {step.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-7 text-[#9aa6b8]">
+                    {step.copy}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <section
+              id="publishing"
+              className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02)),#08111b] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-8"
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f2a666]">
+                Publishing
+              </p>
+              <h2 className="mt-2 max-w-[12ch] font-['Space_Grotesk'] text-[clamp(2rem,4vw,3rem)] font-bold leading-[1] tracking-tight text-white">
+                Connect the channels you already use.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-[#9aa6b8] sm:text-base">
+                After signup, you can connect supported platforms in the integrations
+                area and publish supported assets from the workspace when you are ready.
+              </p>
+
+              <div className="mt-6 grid gap-3">
+                <div className="rounded-[1.4rem] border border-emerald-300/15 bg-emerald-300/8 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#c9f4e5]">
+                    Wired today
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-[#ecfff8]">
+                    LinkedIn, Instagram, and Ghost publishing are already part of the
+                    workspace flow for supported asset types.
+                  </p>
+                </div>
+                <div className="rounded-[1.4rem] border border-sky-300/15 bg-sky-300/8 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#d7efff]">
+                    Connection flow available
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-[#edf7ff]">
+                    X is present in integrations today, even though the strongest
+                    publish path in the workspace is still centered on the supported
+                    asset destinations above.
+                  </p>
+                </div>
+                <div className="rounded-[1.4rem] border border-amber-200/15 bg-amber-200/8 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#ffd7b4]">
+                    Still coming soon
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-[#f7ede3]">
+                    TikTok, Medium, Substack, Notion, and YouTube publishing should be
+                    treated as future-facing until those cards stop saying coming soon.
+                  </p>
                 </div>
               </div>
             </section>
 
-            <aside className="grid gap-5" id="auth">
-              <div className="rounded-[1.5rem] border border-white/10 bg-[#151b25]/80 p-5 shadow-xl shadow-black/20">
-                <div className="mb-5 flex items-center justify-between gap-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#d8a36f]">
-                    Product preview
-                  </p>
-                  <span className="rounded-full border border-[#8fb8b2]/30 bg-[#8fb8b2]/10 px-3 py-1 text-xs font-medium text-[#b9d8d2]">
-                    Workspace-first
-                  </span>
-                </div>
+            <section
+              id="plans"
+              className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02)),#08111b] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-8"
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f2a666]">
+                Plans and account
+              </p>
+              <h2 className="mt-2 max-w-[12ch] font-['Space_Grotesk'] text-[clamp(2rem,4vw,3rem)] font-bold leading-[1] tracking-tight text-white">
+                Sign up now and grow into the rest of the product.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-[#9aa6b8] sm:text-base">
+                Accounts are already set up for email or Google sign-in, email
+                verification, saved workspaces, billing usage, and plan upgrades from
+                inside the app.
+              </p>
 
-                <div className="grid gap-3">
-                  <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                    <strong className="text-sm text-white">
-                      1. Capture your voice
-                    </strong>
-                    <p className="mt-1 text-sm leading-6 text-[#b9aca0]">
-                      Save writing samples or YouTube transcripts once.
-                    </p>
-                  </article>
-
-                  <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                    <strong className="text-sm text-white">
-                      2. Generate target assets
-                    </strong>
-                    <p className="mt-1 text-sm leading-6 text-[#b9aca0]">
-                      Create posts, scripts, captions, newsletters, blogs, and
-                      more from one source.
-                    </p>
-                  </article>
-
-                  <article className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                    <strong className="text-sm text-white">
-                      3. Keep everything organized
-                    </strong>
-                    <p className="mt-1 text-sm leading-6 text-[#b9aca0]">
-                      Use the workspace as your content library instead of
-                      losing outputs in chat.
-                    </p>
-                  </article>
-                </div>
+              <div className="mt-6 space-y-3">
+                {[
+                  "Create an account with email or Google.",
+                  "Verify your email before high-trust actions like billing and publishing.",
+                  "Keep your voice profile, drafts, schedules, and account history together.",
+                ].map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-[1.25rem] border border-white/8 bg-white/5 px-4 py-3 text-sm leading-6 text-[#e4ecf6]"
+                  >
+                    {item}
+                  </div>
+                ))}
               </div>
 
-              <AuthCard authSectionRef={authSectionRef} />
-            </aside>
+              <a
+                className="mt-6 inline-flex items-center justify-center rounded-full bg-[#ff8a3d] px-6 py-3 text-sm font-semibold text-[#0b1320] shadow-[0_18px_40px_rgba(255,138,61,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff9e59]"
+                href="#auth"
+                onClick={scrollToAuth}
+              >
+                Create your account
+              </a>
+            </section>
           </div>
-        </section>
+        </div>
 
-        <section id="product" className="py-20">
-          <div className="mb-12 max-w-2xl text-left">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-[#d8a36f]">
-              Product
-            </p>
-            <h2 className="max-w-[12ch] text-3xl font-semibold leading-[1.05] tracking-[-0.03em] text-white sm:text-5xl">
-              Turn one source into many assets.
-            </h2>
-            <p className="mt-5 max-w-xl text-base leading-7 text-[#b9aca0]">
-              Create platform-specific content from a single piece of source
-              material while maintaining a consistent voice across channels.
-            </p>
-          </div>
-
-          <div className="grid gap-5 md:grid-cols-3">
-            <article className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-6">
-              <span className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8fb8b2]">
-                Voice
-              </span>
-              <h3 className="mt-4 text-xl font-semibold text-white">
-                Train the system on your style
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-[#b9aca0]">
-                Save writing samples, transcripts, and references so generated
-                content sounds more like you and less like generic AI.
-              </p>
-            </article>
-
-            <article className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-6">
-              <span className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8fb8b2]">
-                Repurpose
-              </span>
-              <h3 className="mt-4 text-xl font-semibold text-white">
-                Create content for every channel
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-[#b9aca0]">
-                Generate LinkedIn posts, Twitter threads, newsletters, blogs,
-                captions, scripts, and more from a single source.
-              </p>
-            </article>
-
-            <article className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-6">
-              <span className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8fb8b2]">
-                Workspace
-              </span>
-              <h3 className="mt-4 text-xl font-semibold text-white">
-                Keep everything organized
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-[#b9aca0]">
-                Store, edit, revisit, and improve generated assets without
-                losing them across chats, documents, or disconnected tools.
-              </p>
-            </article>
-          </div>
-        </section>
-
-        <section id="workflow" className="py-20">
-          <div className="mb-12 max-w-2xl text-left">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-[#d8a36f]">
-              Workflow
-            </p>
-            <h2 className="max-w-[12ch] text-3xl font-semibold leading-[1.05] tracking-[-0.03em] text-white sm:text-5xl">
-              A simple three-step workflow.
-            </h2>
-            <p className="mt-5 max-w-xl text-base leading-7 text-[#b9aca0]">
-              Go from source content to publishing-ready assets in minutes.
-            </p>
-          </div>
-
-          <div className="grid gap-5 md:grid-cols-3">
-            <article className="rounded-[1.5rem] border border-white/10 bg-[#151b25]/80 p-6">
-              <span className="text-4xl font-semibold tracking-[-0.05em] text-[#d8a36f]">
-                01
-              </span>
-              <h3 className="mt-6 text-xl font-semibold text-white">
-                Add your source
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-[#b9aca0]">
-                Paste a YouTube link, upload a transcript, or provide content
-                you want to repurpose.
-              </p>
-            </article>
-
-            <article className="rounded-[1.5rem] border border-white/10 bg-[#151b25]/80 p-6">
-              <span className="text-4xl font-semibold tracking-[-0.05em] text-[#d8a36f]">
-                02
-              </span>
-              <h3 className="mt-6 text-xl font-semibold text-white">
-                Generate assets
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-[#b9aca0]">
-                Select the formats you need and create multiple content pieces
-                from a single source.
-              </p>
-            </article>
-
-            <article className="rounded-[1.5rem] border border-white/10 bg-[#151b25]/80 p-6">
-              <span className="text-4xl font-semibold tracking-[-0.05em] text-[#d8a36f]">
-                03
-              </span>
-              <h3 className="mt-6 text-xl font-semibold text-white">
-                Review and export
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-[#b9aca0]">
-                Refine outputs, make edits, and keep everything organized inside
-                your workspace.
-              </p>
-            </article>
-          </div>
-        </section>
-
-        <section
-          id="pricing"
-          className="mb-10 grid gap-6 rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.025] p-6 sm:p-8 lg:grid-cols-[1fr_0.8fr] lg:p-10"
-        >
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-[#d8a36f]">
-              What&apos;s next
-            </p>
-            <h2 className="max-w-xl text-3xl font-semibold leading-[1.08] tracking-[-0.03em] text-white sm:text-5xl">
-              One place to create and scale your content.
-            </h2>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-[#b9aca0]">
-              {APP_NAME} is expanding with platform integrations, direct publishing,
-              better AI generation quality, and more content formats to help creators
-              turn every video into publish-ready assets for different platforms.
-            </p>
-          </div>
-
-          <div className="rounded-[1.5rem] border border-white/10 bg-[#151b25]/80 p-6">
-            <span className="inline-flex rounded-full border border-[#8fb8b2]/30 bg-[#8fb8b2]/10 px-3 py-1 text-xs font-medium text-[#b9d8d2]">
-              Coming soon
-            </span>
-
-            <ul className="mt-5 space-y-3 text-sm leading-6 text-[#d8c7b5]">
-              <li>Platform integrations with direct publishing</li>
-              <li>Improved voice matching and generation quality</li>
-              <li>More platform-specific content formats</li>
-            </ul>
-
-            <a
-              className="mt-6 inline-flex rounded-full bg-[#d8a36f] px-6 py-3 text-sm font-semibold text-[#111820] shadow-lg shadow-[#d8a36f]/20 transition hover:-translate-y-0.5 hover:bg-[#e4b47f]"
-              href="#auth"
-              onClick={scrollToAuth}
-            >
-              Get started
-            </a>
-          </div>
-        </section>
-
-        <footer className="landing-footer">
-          <div className="landing-footer-brand">
-            <div className="landing-footer-mark">CB</div>
+        <footer className="mt-12 grid gap-6 rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015)),#07101a] px-6 py-8 text-sm text-[#9aa6b8] shadow-[0_24px_70px_rgba(0,0,0,0.25)] sm:px-8 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
+          <div className="flex items-start gap-4">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#ff8a3d] to-[#8fc8b9] font-bold text-[#09111b]">
+              CB
+            </div>
             <div>
-              <p className="landing-footer-title">{APP_NAME}</p>
-              <p className="landing-footer-copy">
-                Turn one video into platform-native assets that keep pointing people back to the original source.
+              <p className="m-0 text-base font-semibold text-white">{APP_NAME}</p>
+              <p className="mt-2 max-w-xl leading-6">
+                Create from source material, keep your drafts organized, and move
+                toward publishing from one account.
               </p>
             </div>
           </div>
 
-          <div className="landing-footer-links">
-            <Link href="/privacy">Privacy Policy</Link>
-            <Link href="/terms">Terms of Service</Link>
-            <Link href="/support">Contact Support</Link>
+          <div className="flex flex-wrap gap-3 text-white/85">
+            <Link className="transition hover:text-white" href="/privacy">
+              Privacy Policy
+            </Link>
+            <Link className="transition hover:text-white" href="/terms">
+              Terms of Service
+            </Link>
+            <Link className="transition hover:text-white" href="/support">
+              Contact Support
+            </Link>
           </div>
 
-          <div className="landing-footer-meta">
-            <div>
-              <p style={{ marginBottom: "4px" }}>© {currentYear} {APP_NAME}. All rights reserved.</p>
-              <p style={{ marginTop: "4px", opacity: 0.8 }}>Built for creators, teams, and distribution-first workflows.</p>
-            </div>
+          <div className="text-sm leading-6 lg:text-right">
+            <p className="m-0">&copy; {currentYear} {APP_NAME}. All rights reserved.</p>
+            <p className="mt-1">Built for creators, teams, and distribution-first workflows.</p>
           </div>
         </footer>
       </main>

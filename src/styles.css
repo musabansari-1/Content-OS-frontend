@@ -5199,6 +5199,31 @@ textarea {
   align-items: start;
 }
 
+.landing-hero-copy {
+  display: grid;
+  gap: 24px;
+  padding: clamp(18px, 3vw, 32px);
+}
+
+.landing-hero-copy h1 {
+  margin: 0;
+  max-width: 12ch;
+  color: #fffaf4;
+  font-family: "Space Grotesk", "Manrope", sans-serif;
+  font-size: clamp(4rem, 8vw, 7.5rem);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: 0;
+}
+
+.landing-hero-lede {
+  max-width: 760px;
+  margin: 0;
+  color: #d8c7b5;
+  font-size: clamp(1rem, 1.4vw, 1.25rem);
+  line-height: 1.75;
+}
+
 .landing-hero-actions {
   display: flex;
   gap: 12px;
@@ -5305,6 +5330,78 @@ textarea {
   gap: 14px;
 }
 
+.landing-product-preview {
+  display: grid;
+  gap: 18px;
+}
+
+.landing-preview-source,
+.landing-preview-actions {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.landing-preview-source span,
+.landing-preview-actions span,
+.landing-preview-board span {
+  color: #9fb0c4;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.landing-preview-source strong,
+.landing-preview-actions strong {
+  color: #f6efe7;
+  line-height: 1.4;
+}
+
+.landing-preview-pack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.landing-preview-pack span {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(143, 184, 178, 0.18);
+  background: rgba(143, 184, 178, 0.075);
+  color: #d8ebe7;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.landing-preview-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.landing-preview-board div {
+  display: grid;
+  gap: 8px;
+  min-height: 86px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(164, 180, 212, 0.12);
+  background: rgba(7, 14, 25, 0.46);
+}
+
+.landing-preview-board strong {
+  color: #f6efe7;
+  font-size: 1.15rem;
+}
+
 .landing-preview-panel,
 .landing-feature-card,
 .landing-workflow-step {
@@ -5347,6 +5444,10 @@ textarea {
 
 .landing-workflow-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.landing-workflow-grid-four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .landing-workflow-step span {
@@ -5438,7 +5539,8 @@ textarea {
   }
 
   .landing-section-heading,
-  .landing-topbar {
+  .landing-topbar,
+  .landing-billing-section {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -5550,9 +5652,19 @@ textarea {
   .hero-left h1,
   .workspace-top h1,
   .integrations-header h1,
+  .landing-hero-copy h1,
   .landing-section-heading h2,
   .landing-billing-copy h2 {
     font-size: clamp(2.3rem, 10vw, 3.5rem);
+  }
+
+  .landing-hero-copy {
+    padding: 4px;
+  }
+
+  .landing-preview-pack,
+  .landing-preview-board {
+    grid-template-columns: 1fr;
   }
 
   .panel,
