@@ -40,6 +40,7 @@ export function AppProvider({ children }) {
     password: "",
     displayName: "",
   });
+  const [authConsentAccepted, setAuthConsentAccepted] = useState(false);
   const [authStatus, setAuthStatus] = useState("idle");
   const [authError, setAuthError] = useState("");
   const [authMessage, setAuthMessage] = useState("");
@@ -617,6 +618,37 @@ export function AppProvider({ children }) {
   const selectedAsset =
     workspaceAssets.find((asset) => asset.id === activeAssetId) ?? null;
 
+  const authConsentMessage =
+    "Please agree to the Terms of Service and confirm that you have read the Privacy Policy.";
+
+  const handleSetAuthMode = (mode) => {
+    setAuthMode(mode);
+    if (authError) setAuthError("");
+    if (authMessage) setAuthNotice();
+    if (googleAuthError) setGoogleAuthError("");
+  };
+
+  const handleAuthConsentChange = (accepted) => {
+    setAuthConsentAccepted(Boolean(accepted));
+    if (authError) setAuthError("");
+    if (googleAuthError) setGoogleAuthError("");
+  };
+
+  const requireSignupConsent = (surface = "form") => {
+    if (authMode !== "register" || authConsentAccepted) {
+      return true;
+    }
+    setAuthStatus("idle");
+    setGoogleAuthStatus("idle");
+    setAuthNotice();
+    if (surface === "google") {
+      setGoogleAuthError(authConsentMessage);
+    } else {
+      setAuthError(authConsentMessage);
+    }
+    return false;
+  };
+
   const handleAuthChange = (field, value) => {
     setAuthForm((current) => ({ ...current, [field]: value }));
     if (authError) setAuthError("");
@@ -626,6 +658,9 @@ export function AppProvider({ children }) {
 
   const handleAuthSubmit = async (event) => {
     event.preventDefault();
+    if (!requireSignupConsent("form")) {
+      return;
+    }
     if (!authForm.email.trim()) {
       setAuthError("Enter your email address.");
       return;
@@ -690,6 +725,7 @@ export function AppProvider({ children }) {
         password: "",
         displayName: "",
       });
+      setAuthConsentAccepted(false);
     } catch (error) {
       setAuthStatus("error");
       if (
@@ -713,6 +749,9 @@ export function AppProvider({ children }) {
   };
 
   const handleGoogleSignIn = async (idToken) => {
+    if (!requireSignupConsent("google")) {
+      return;
+    }
     if (!idToken) {
       setGoogleAuthError("Google sign-in did not return a valid credential.");
       return;
@@ -1506,8 +1545,9 @@ export function AppProvider({ children }) {
       token,
       user,
       authMode,
-      setAuthMode,
+      setAuthMode: handleSetAuthMode,
       authForm,
+      authConsentAccepted,
       authStatus,
       authError,
       authMessage,
@@ -1518,9 +1558,11 @@ export function AppProvider({ children }) {
       googleAuthError,
       verificationStatus,
       bootStatus,
+      handleAuthConsentChange,
       handleAuthChange,
       handleAuthSubmit,
       handleGoogleSignIn,
+      requireSignupConsent,
       handleResendVerification,
       handleVerifyEmailToken,
       handlePasswordReset,
@@ -1652,6 +1694,7 @@ export function AppProvider({ children }) {
       authForm,
       authActionLabel,
       authActionUrl,
+      authConsentAccepted,
       authMessage,
       authMessageKind,
       authMode,

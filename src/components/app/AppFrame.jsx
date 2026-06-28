@@ -6,6 +6,27 @@ import { GenerationLoader } from "./WorkspacePage";
 import { useAppState } from "./AppProvider";
 import { APP_NAME, GOOGLE_CLIENT_ID } from "../../lib/appConstants";
 
+function InlineInfoIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 20 20"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle cx="10" cy="10" r="7.25" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M10 8.35V13"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.5"
+      />
+      <circle cx="10" cy="6.1" fill="currentColor" r="1" />
+    </svg>
+  );
+}
+
 function AuthNotice({
   message,
   kind = "info",
@@ -45,12 +66,17 @@ function AuthNotice({
   );
 }
 
-function GoogleSignInButton({ authMode }) {
-  const { googleAuthStatus, googleAuthError, handleGoogleSignIn } = useAppState();
+function GoogleSignInButton({ authMode, authConsentAccepted }) {
+  const {
+    googleAuthStatus,
+    googleAuthError,
+    handleGoogleSignIn,
+  } = useAppState();
   const buttonRef = useRef(null);
   const callbackRef = useRef(handleGoogleSignIn);
   const [scriptError, setScriptError] = useState("");
   const shouldShowGoogle = Boolean(GOOGLE_CLIENT_ID) && authMode !== "forgot";
+  const consentRequired = authMode === "register" && !authConsentAccepted;
 
   useEffect(() => {
     callbackRef.current = handleGoogleSignIn;
@@ -133,9 +159,22 @@ function GoogleSignInButton({ authMode }) {
   return (
     <div className="grid gap-3">
       <div
-        className="flex min-h-[44px] justify-center [&>div]:!w-full [&_iframe]:mx-auto"
-        ref={buttonRef}
-      />
+        className={[
+          "transition",
+          consentRequired ? "pointer-events-none opacity-45 saturate-0" : "",
+        ].join(" ")}
+      >
+        <div
+          className="flex min-h-[44px] justify-center [&>div]:!w-full [&_iframe]:mx-auto"
+          ref={buttonRef}
+        />
+      </div>
+      {consentRequired ? (
+        <p className="m-0 inline-flex items-center gap-2 text-sm text-[#9aa6b8]">
+          <InlineInfoIcon className="h-4 w-4 shrink-0 text-[#f2a666]" />
+          Agree to the terms below to continue with Google.
+        </p>
+      ) : null}
       {googleAuthStatus === "loading" ? (
         <p className="m-0 text-sm text-[#9aa6b8]">Signing in with Google...</p>
       ) : null}
@@ -150,20 +189,32 @@ function AuthCard({ authSectionRef }) {
     authMode,
     setAuthMode,
     authForm,
+    authConsentAccepted,
     authStatus,
     authError,
     authMessage,
     authMessageKind,
     authActionUrl,
     authActionLabel,
+    handleAuthConsentChange,
     handleAuthChange,
     handleAuthSubmit,
   } = useAppState();
   const isForgotMode = authMode === "forgot";
+  const isRegisterMode = authMode === "register";
+  const isConsentBlocked = isRegisterMode && !authConsentAccepted;
+  const isSubmitLoading = authStatus === "loading";
   const toggleBaseClasses =
     "rounded-full px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#ff8a3d]/40";
   const fieldClasses =
     "w-full rounded-2xl border border-white/10 bg-[#101a28] px-4 py-3 text-sm text-white placeholder:text-[#718096] focus:border-[#ff8a3d]/45 focus:outline-none focus:ring-2 focus:ring-[#ff8a3d]/20";
+  const submitButtonClasses = [
+    "mt-2 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition",
+    isConsentBlocked
+      ? "cursor-not-allowed border border-white/10 bg-white/8 text-[#8d9ab0] shadow-none"
+      : "bg-[#ff8a3d] text-[#0c1420] shadow-[0_18px_40px_rgba(255,138,61,0.28)] hover:-translate-y-0.5 hover:bg-[#ff9e59]",
+    isSubmitLoading ? "cursor-wait opacity-70" : "",
+  ].join(" ");
 
   return (
     <section
@@ -226,18 +277,8 @@ function AuthCard({ authSectionRef }) {
         </div>
       ) : null}
 
-      <GoogleSignInButton authMode={authMode} />
-
-      {!isForgotMode ? (
-        <div className="my-5 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#74839a]">
-          <span className="h-px flex-1 bg-white/10" />
-          <span>Or continue with email</span>
-          <span className="h-px flex-1 bg-white/10" />
-        </div>
-      ) : null}
-
       <form className="mt-5 flex flex-col gap-4" onSubmit={handleAuthSubmit}>
-        {authMode === "register" ? (
+        {isRegisterMode ? (
           <label className="flex flex-col gap-2">
             <span className="text-sm font-medium text-[#d7deea]">Display name</span>
             <input
@@ -271,24 +312,88 @@ function AuthCard({ authSectionRef }) {
             />
           </label>
         ) : null}
+        {isRegisterMode ? (
+          <label className="flex items-start gap-3 rounded-[1.4rem] border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 text-[#d7deea]">
+            <input
+              checked={authConsentAccepted}
+              className="mt-1 h-4 w-4 shrink-0 rounded border-white/20 bg-[#101a28] accent-[#ff8a3d]"
+              onChange={(event) => handleAuthConsentChange(event.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              I agree to the{" "}
+              <Link
+                className="font-semibold text-[#f2a666] underline decoration-[#f2a666]/35 underline-offset-4 transition hover:text-[#ffd2ad] hover:decoration-[#ffd2ad]"
+                href="/terms"
+                rel="noreferrer"
+                target="_blank"
+              >
+                Terms of Service
+              </Link>{" "}
+              and acknowledge that I have read the{" "}
+              <Link
+                className="font-semibold text-[#f2a666] underline decoration-[#f2a666]/35 underline-offset-4 transition hover:text-[#ffd2ad] hover:decoration-[#ffd2ad]"
+                href="/privacy"
+                rel="noreferrer"
+                target="_blank"
+              >
+                Privacy Policy
+              </Link>
+              .
+            </span>
+          </label>
+        ) : null}
         <button
-          className="mt-2 inline-flex items-center justify-center rounded-full bg-[#ff8a3d] px-5 py-3 text-sm font-semibold text-[#0c1420] shadow-[0_18px_40px_rgba(255,138,61,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff9e59] disabled:cursor-wait disabled:opacity-70"
+          className={submitButtonClasses}
           type="submit"
-          disabled={authStatus === "loading"}
+          disabled={isSubmitLoading || isConsentBlocked}
         >
-          {authStatus === "loading"
-            ? isForgotMode
-              ? "Sending reset link..."
-              : authMode === "login"
-                ? "Signing in..."
-                : "Creating account..."
-            : isForgotMode
-              ? "Send reset link"
-              : authMode === "login"
-                ? "Log in"
-                : "Create account"}
+          {isSubmitLoading ? (
+            <>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#0c1420]/25 border-t-[#0c1420]" />
+              <span>
+                {isForgotMode
+                  ? "Sending reset link..."
+                  : authMode === "login"
+                    ? "Signing in..."
+                    : "Creating account..."}
+              </span>
+            </>
+          ) : isConsentBlocked ? (
+            <>
+              <InlineInfoIcon className="h-4 w-4 text-[#f2a666]" />
+              <span>Agree to continue</span>
+            </>
+          ) : (
+            <span>
+              {isForgotMode
+                ? "Send reset link"
+                : authMode === "login"
+                  ? "Log in"
+                  : "Create account"}
+            </span>
+          )}
         </button>
+        {isConsentBlocked ? (
+          <p className="m-0 inline-flex items-center gap-2 text-sm text-[#8d9ab0]">
+            <InlineInfoIcon className="h-4 w-4 shrink-0 text-[#f2a666]" />
+            Agree to the terms to create your account.
+          </p>
+        ) : null}
       </form>
+
+      {!isForgotMode ? (
+        <div className="my-5 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#74839a]">
+          <span className="h-px flex-1 bg-white/10" />
+          <span>{isRegisterMode ? "Or sign up with Google" : "Or continue with Google"}</span>
+          <span className="h-px flex-1 bg-white/10" />
+        </div>
+      ) : null}
+
+      <GoogleSignInButton
+        authConsentAccepted={authConsentAccepted}
+        authMode={authMode}
+      />
 
       <div className="mt-4 flex justify-end">
         <button
