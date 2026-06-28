@@ -37,6 +37,14 @@ const sections = [
     ],
   },
   {
+    title: "AI processing and third-party providers",
+    paragraphs: [
+      `${APP_NAME} uses third-party AI model providers to process user-submitted content and generate outputs.`,
+      "Those providers may process or retain data according to their own policies and terms.",
+      "You should not submit highly sensitive, confidential, or personal information through the service.",
+    ],
+  },
+  {
     title: "When we share data",
     paragraphs: [
       "We do not sell your personal information. We share data only with service providers that help us run the product, like hosting, authentication, payment, and model providers, or when the law requires it.",
