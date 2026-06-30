@@ -456,7 +456,7 @@ function AuthScreen() {
       kicker: "Publishing",
       title: "Publish where the app is wired",
       copy:
-        "Connect platforms from the integrations screen and publish supported assets to destinations such as LinkedIn, Instagram, and Ghost.",
+        "Connect platforms from the integrations screen and publish supported assets to destinations such as LinkedIn, Instagram, YouTube, and Ghost.",
     },
   ];
   const workflowSteps = [
@@ -705,7 +705,7 @@ function AuthScreen() {
                       </p>
                       <p className="mt-2 text-sm leading-6 text-[#f7ede3]">
                         Direct publish is currently wired for supported assets on
-                        LinkedIn, Instagram, and Ghost. Some integrations are still
+                        LinkedIn, Instagram, YouTube, and Ghost. Some integrations are still
                         marked coming soon.
                       </p>
                     </div>
@@ -818,7 +818,7 @@ function AuthScreen() {
                     Wired today
                   </p>
                   <p className="mt-2 text-sm leading-6 text-[#ecfff8]">
-                    LinkedIn, Instagram, and Ghost publishing are already part of the
+                    LinkedIn, Instagram, YouTube, and Ghost publishing are already part of the
                     workspace flow for supported asset types.
                   </p>
                 </div>
@@ -837,7 +837,7 @@ function AuthScreen() {
                     Still coming soon
                   </p>
                   <p className="mt-2 text-sm leading-6 text-[#f7ede3]">
-                    TikTok, Medium, Substack, Notion, and YouTube publishing should be
+                    TikTok, Medium, Substack, and Notion publishing should be
                     treated as future-facing until those cards stop saying coming soon.
                   </p>
                 </div>

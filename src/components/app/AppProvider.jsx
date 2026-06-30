@@ -90,6 +90,9 @@ export function AppProvider({ children }) {
   const [ghostPublishStatus, setGhostPublishStatus] = useState("idle");
   const [ghostPublishError, setGhostPublishError] = useState("");
   const [ghostPublishResult, setGhostPublishResult] = useState(null);
+  const [youtubePublishStatus, setYoutubePublishStatus] = useState("idle");
+  const [youtubePublishError, setYoutubePublishError] = useState("");
+  const [youtubePublishResult, setYoutubePublishResult] = useState(null);
   const [connectedPlatformIds, setConnectedPlatformIds] = useState([]);
   const [integrationStatus, setIntegrationStatus] = useState("idle");
   const [scheduledPosts, setScheduledPosts] = useState([]);
@@ -285,6 +288,7 @@ export function AppProvider({ children }) {
       instagram: "Instagram",
       tiktok: "TikTok",
       ghost: "Ghost",
+      youtube: "YouTube",
     }[normalizedPlatform] || normalizedPlatform;
 
     throw new Error(`Connect ${platformLabel} in Integrations before scheduling this asset.`);
@@ -849,6 +853,9 @@ export function AppProvider({ children }) {
     setInstagramPublishStatus("idle");
     setInstagramPublishError("");
     setInstagramPublishResult(null);
+    setYoutubePublishStatus("idle");
+    setYoutubePublishError("");
+    setYoutubePublishResult(null);
     setScheduledPosts([]);
     setScheduledPostsStatus("idle");
     setScheduledPostsError("");
@@ -1249,6 +1256,36 @@ export function AppProvider({ children }) {
     }
   };
 
+  const handlePublishYouTubeAsset = async (asset) => {
+    if (!asset) {
+      setYoutubePublishError("Select a YouTube Shorts asset first.");
+      return;
+    }
+
+    const assetType = String(asset.assetType || "").toLowerCase();
+    if (assetType !== "youtube_shorts") {
+      setYoutubePublishError("Only YouTube Shorts assets can be published to YouTube.");
+      return;
+    }
+
+    setYoutubePublishStatus("loading");
+    setYoutubePublishError("");
+    setYoutubePublishResult(null);
+
+    try {
+      const response = await authenticatedFetch("/youtube/publish", {
+        method: "POST",
+        body: JSON.stringify({ asset }),
+      });
+      setYoutubePublishResult({ assetId: asset.id, ...response });
+      setYoutubePublishStatus("success");
+    } catch (error) {
+      setYoutubePublishStatus("error");
+      setYoutubePublishError(error.message);
+      setYoutubePublishResult({ assetId: asset.id, error: error.message });
+    }
+  };
+
   const refreshScheduledPosts = async ({ silent = false } = {}) => {
     if (!token) {
       setScheduledPosts([]);
@@ -1615,6 +1652,7 @@ export function AppProvider({ children }) {
       handlePublishLinkedInAsset,
       handlePublishInstagramAsset,
       handlePublishGhostAsset,
+      handlePublishYouTubeAsset,
       refreshIntegrationStatus,
       refreshScheduledPosts,
       handleScheduleAsset,
@@ -1633,6 +1671,9 @@ export function AppProvider({ children }) {
       ghostPublishStatus,
       ghostPublishError,
       ghostPublishResult,
+      youtubePublishStatus,
+      youtubePublishError,
+      youtubePublishResult,
       connectedPlatformIds,
       integrationStatus,
       scheduledPosts,
@@ -1724,6 +1765,9 @@ export function AppProvider({ children }) {
       ghostPublishError,
       ghostPublishResult,
       ghostPublishStatus,
+      youtubePublishError,
+      youtubePublishResult,
+      youtubePublishStatus,
       connectedPlatformIds,
       integrationStatus,
       scheduledPosts,

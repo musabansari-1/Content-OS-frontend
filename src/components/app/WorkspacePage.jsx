@@ -1093,6 +1093,10 @@ function AssetDocument({
   ghostPublishStatus,
   ghostPublishError,
   ghostPublishResult,
+  onPublishYouTube,
+  youtubePublishStatus,
+  youtubePublishError,
+  youtubePublishResult,
   connectedPlatformIds = [],
   integrationStatus = "idle",
   onScheduleAsset,
@@ -1112,6 +1116,7 @@ function AssetDocument({
   const isLinkedInAsset = (asset.assetType || "").toLowerCase().includes("linkedin");
   const isInstagramAsset = (asset.assetType || "").toLowerCase().includes("instagram");
   const isGhostAsset = ["blog_post", "newsletter"].includes((asset.assetType || "").toLowerCase());
+  const isYouTubeAsset = (asset.assetType || "").toLowerCase() === "youtube_shorts";
   const schedulingPlatform = getSchedulingPlatform(asset);
   const schedulingLabel = schedulingPlatform
     ? schedulingPlatform.charAt(0).toUpperCase() + schedulingPlatform.slice(1)
@@ -1119,10 +1124,12 @@ function AssetDocument({
   const isPublishing = linkedinPublishStatus === "loading";
   const isInstagramPublishing = instagramPublishStatus === "loading";
   const isGhostPublishing = ghostPublishStatus === "loading";
+  const isYouTubePublishing = youtubePublishStatus === "loading";
   const isScheduling = scheduleStatus === "loading";
   const canPublishLinkedIn = isLinkedInAsset;
   const canPublishInstagram = isInstagramAsset;
   const canPublishGhost = isGhostAsset;
+  const canPublishYouTube = isYouTubeAsset;
   const existingScheduledPost = findScheduledPostForAsset(asset, scheduledPosts);
   const isAlreadyScheduled = Boolean(existingScheduledPost);
   const canSchedule = isSchedulableAsset(asset);
@@ -1136,6 +1143,7 @@ function AssetDocument({
   const publishMatchesAsset = linkedinPublishResult?.assetId === asset.id;
   const instagramPublishMatchesAsset = instagramPublishResult?.assetId === asset.id;
   const ghostPublishMatchesAsset = ghostPublishResult?.assetId === asset.id;
+  const youtubePublishMatchesAsset = youtubePublishResult?.assetId === asset.id;
   const scheduleMatchesAsset = scheduleResult?.assetId === asset.id;
 
   useEffect(() => {
@@ -1250,6 +1258,16 @@ function AssetDocument({
               {isGhostPublishing ? "Publishing..." : "Publish to Ghost"}
             </button>
           ) : null}
+          {canPublishYouTube ? (
+            <button
+              className="primary-button small"
+              onClick={() => onPublishYouTube(asset)}
+              type="button"
+              disabled={isYouTubePublishing}
+            >
+              {isYouTubePublishing ? "Uploading..." : "Publish to YouTube"}
+            </button>
+          ) : null}
         </div>
         {canPublishLinkedIn ? (
           <div className="asset-publish-status">
@@ -1301,6 +1319,29 @@ function AssetDocument({
             ) : (
               <p className="muted-copy">
                 Publish this {String(asset.assetType || "").toLowerCase() === "newsletter" ? "newsletter issue" : "blog post"} directly to your connected Ghost site.
+              </p>
+            )}
+          </div>
+        ) : null}
+        {canPublishYouTube ? (
+          <div className="asset-publish-status">
+            {youtubePublishMatchesAsset && youtubePublishError ? (
+              <p className="error">{youtubePublishError}</p>
+            ) : youtubePublishMatchesAsset && youtubePublishStatus === "success" ? (
+              <p className="success">
+                YouTube video uploaded
+                {youtubePublishResult?.youtube_video_url ? (
+                  <>
+                    {" "}
+                    <a href={youtubePublishResult.youtube_video_url} target="_blank" rel="noreferrer">
+                      View video
+                    </a>
+                  </>
+                ) : youtubePublishResult?.youtube_video_id ? ` (${youtubePublishResult.youtube_video_id})` : ""}.
+              </p>
+            ) : (
+              <p className="muted-copy">
+                Upload this YouTube Shorts asset directly to your connected channel.
               </p>
             )}
           </div>
@@ -1558,6 +1599,10 @@ export default function WorkspacePage({
   ghostPublishStatus,
   ghostPublishError,
   ghostPublishResult,
+  onPublishYouTube,
+  youtubePublishStatus,
+  youtubePublishError,
+  youtubePublishResult,
   connectedPlatformIds,
   integrationStatus,
   onScheduleAsset,
@@ -1677,6 +1722,10 @@ export default function WorkspacePage({
                 ghostPublishStatus={ghostPublishStatus}
                 ghostPublishError={ghostPublishError}
                 ghostPublishResult={ghostPublishResult}
+                onPublishYouTube={onPublishYouTube}
+                youtubePublishStatus={youtubePublishStatus}
+                youtubePublishError={youtubePublishError}
+                youtubePublishResult={youtubePublishResult}
                 connectedPlatformIds={connectedPlatformIds}
                 integrationStatus={integrationStatus}
                 onScheduleAsset={onScheduleAsset}

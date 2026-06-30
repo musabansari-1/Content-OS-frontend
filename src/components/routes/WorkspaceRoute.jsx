@@ -36,6 +36,10 @@ export default function WorkspaceRoute() {
         ghostPublishStatus={app.ghostPublishStatus}
         ghostPublishError={app.ghostPublishError}
         ghostPublishResult={app.ghostPublishResult}
+        onPublishYouTube={app.handlePublishYouTubeAsset}
+        youtubePublishStatus={app.youtubePublishStatus}
+        youtubePublishError={app.youtubePublishError}
+        youtubePublishResult={app.youtubePublishResult}
         connectedPlatformIds={app.connectedPlatformIds}
         integrationStatus={app.integrationStatus}
         onScheduleAsset={app.handleScheduleAsset}

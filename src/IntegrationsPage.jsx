@@ -147,10 +147,10 @@ const AVAILABLE_INTEGRATIONS = [
   {
     id: "youtube",
     name: "YouTube",
-    platform: "content",
-    category: "Content",
-    status: "coming-soon",
-    description: "Manage video uploads and publishing",
+    platform: "publishing",
+    category: "Publishing",
+    status: "available",
+    description: "Upload YouTube Shorts and short-form videos",
     icon: <IconYouTube />,
   },
   {
@@ -233,6 +233,7 @@ export default function IntegrationsPage() {
     const linkedinStatus = params.get("linkedin");
     const xStatus = params.get("x");
     const instagramStatus = params.get("instagram");
+    const youtubeStatus = params.get("youtube");
     const reason = params.get("reason");
 
     async function loadIntegrationStatus() {
@@ -308,6 +309,20 @@ export default function IntegrationsPage() {
           ? `We could not finish the Instagram connection (${reason}). Please try again.`
           : "We could not finish the Instagram connection. Please try again.",
       });
+    } else if (youtubeStatus === "connected") {
+      setCallbackNotice({
+        type: "success",
+        title: "YouTube connected",
+        message: "Your YouTube channel is now connected and ready to use.",
+      });
+    } else if (youtubeStatus === "error") {
+      setCallbackNotice({
+        type: "error",
+        title: "YouTube connection failed",
+        message: reason
+          ? `We could not finish the YouTube connection (${reason}). Please try again.`
+          : "We could not finish the YouTube connection. Please try again.",
+      });
     }
 
     loadIntegrationStatus();
@@ -349,7 +364,9 @@ export default function IntegrationsPage() {
           ? "/auth/linkedin"
           : integrationId === "instagram"
             ? "/auth/instagram"
-            : "/auth/x";
+            : integrationId === "youtube"
+              ? "/auth/youtube"
+              : "/auth/x";
       const response = await apiFetch(endpoint, { method: "GET" }, token);
       if (!response?.auth_url) {
         throw new Error(`Could not start the ${integrationName} connection.`);

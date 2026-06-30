@@ -511,6 +511,10 @@ export function isTikTokAsset(asset) {
   return String(asset?.assetType || "").toLowerCase().includes("tiktok");
 }
 
+export function isYouTubeAsset(asset) {
+  return String(asset?.assetType || "").toLowerCase() === "youtube_shorts";
+}
+
 export function isGhostAsset(asset) {
   const assetType = String(asset?.assetType || "").toLowerCase();
   return assetType === "blog_post" || assetType === "newsletter";
@@ -532,6 +536,7 @@ export function getSchedulingPlatform(asset) {
   if (isLinkedInAsset(asset)) return "linkedin";
   if (isInstagramAsset(asset)) return "instagram";
   if (isTikTokAsset(asset)) return "tiktok";
+  if (isYouTubeAsset(asset)) return "youtube";
   if (isGhostAsset(asset)) return "ghost";
   return "";
 }
@@ -555,7 +560,7 @@ export function buildScheduledPostPayload(asset) {
     return { platform, payload: { text, metadata } };
   }
 
-  if (platform === "instagram" || platform === "tiktok" || platform === "ghost") {
+  if (platform === "instagram" || platform === "tiktok" || platform === "ghost" || platform === "youtube") {
     return { platform, payload: { asset, metadata } };
   }
 
