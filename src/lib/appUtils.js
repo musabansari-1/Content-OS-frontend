@@ -503,6 +503,17 @@ export function isLinkedInAsset(asset) {
   return String(asset?.assetType || "").toLowerCase().includes("linkedin");
 }
 
+export function isXAsset(asset) {
+  const assetType = String(asset?.assetType || "").toLowerCase();
+  const platformLabel = String(asset?.platformLabel || "").toLowerCase();
+  return (
+    assetType === "x_post" ||
+    assetType === "twitter_thread" ||
+    platformLabel === "x" ||
+    platformLabel === "x / twitter"
+  );
+}
+
 export function isInstagramAsset(asset) {
   return String(asset?.assetType || "").toLowerCase().includes("instagram");
 }
@@ -524,6 +535,7 @@ export function formatPlatformName(platform = "") {
   const normalized = String(platform || "").trim().toLowerCase();
   const labels = {
     linkedin: "LinkedIn",
+    x: "X",
     instagram: "Instagram",
     tiktok: "TikTok",
     youtube: "YouTube",
@@ -534,6 +546,7 @@ export function formatPlatformName(platform = "") {
 
 export function getSchedulingPlatform(asset) {
   if (isLinkedInAsset(asset)) return "linkedin";
+  if (isXAsset(asset)) return "x";
   if (isInstagramAsset(asset)) return "instagram";
   if (isTikTokAsset(asset)) return "tiktok";
   if (isYouTubeAsset(asset)) return "youtube";
@@ -560,7 +573,7 @@ export function buildScheduledPostPayload(asset) {
     return { platform, payload: { text, metadata } };
   }
 
-  if (platform === "instagram" || platform === "tiktok" || platform === "ghost" || platform === "youtube") {
+  if (platform === "x" || platform === "instagram" || platform === "tiktok" || platform === "ghost" || platform === "youtube") {
     return { platform, payload: { asset, metadata } };
   }
 

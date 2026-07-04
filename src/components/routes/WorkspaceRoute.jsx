@@ -28,6 +28,10 @@ export default function WorkspaceRoute() {
         linkedinPublishStatus={app.linkedinPublishStatus}
         linkedinPublishError={app.linkedinPublishError}
         linkedinPublishResult={app.linkedinPublishResult}
+        onPublishX={app.handlePublishXAsset}
+        xPublishStatus={app.xPublishStatus}
+        xPublishError={app.xPublishError}
+        xPublishResult={app.xPublishResult}
         onPublishInstagram={app.handlePublishInstagramAsset}
         instagramPublishStatus={app.instagramPublishStatus}
         instagramPublishError={app.instagramPublishError}

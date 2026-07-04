@@ -1085,6 +1085,10 @@ function AssetDocument({
   linkedinPublishStatus,
   linkedinPublishError,
   linkedinPublishResult,
+  onPublishX,
+  xPublishStatus,
+  xPublishError,
+  xPublishResult,
   onPublishInstagram,
   instagramPublishStatus,
   instagramPublishError,
@@ -1114,6 +1118,7 @@ function AssetDocument({
   const [videoDownloadError, setVideoDownloadError] = useState("");
   const liveSlides = isCarouselAsset(asset) ? extractLiveSlides(asset.blocks) : null;
   const isLinkedInAsset = (asset.assetType || "").toLowerCase().includes("linkedin");
+  const isXAsset = ["x_post", "twitter_thread"].includes((asset.assetType || "").toLowerCase());
   const isInstagramAsset = (asset.assetType || "").toLowerCase().includes("instagram");
   const isGhostAsset = ["blog_post", "newsletter"].includes((asset.assetType || "").toLowerCase());
   const isYouTubeAsset = (asset.assetType || "").toLowerCase() === "youtube_shorts";
@@ -1122,11 +1127,13 @@ function AssetDocument({
     ? schedulingPlatform.charAt(0).toUpperCase() + schedulingPlatform.slice(1)
     : "Post";
   const isPublishing = linkedinPublishStatus === "loading";
+  const isXPublishing = xPublishStatus === "loading";
   const isInstagramPublishing = instagramPublishStatus === "loading";
   const isGhostPublishing = ghostPublishStatus === "loading";
   const isYouTubePublishing = youtubePublishStatus === "loading";
   const isScheduling = scheduleStatus === "loading";
   const canPublishLinkedIn = isLinkedInAsset;
+  const canPublishX = isXAsset;
   const canPublishInstagram = isInstagramAsset;
   const canPublishGhost = isGhostAsset;
   const canPublishYouTube = isYouTubeAsset;
@@ -1141,6 +1148,7 @@ function AssetDocument({
     ? `Connect ${formatPlatformName(schedulingPlatform)} in Integrations before scheduling this asset.`
     : "";
   const publishMatchesAsset = linkedinPublishResult?.assetId === asset.id;
+  const xPublishMatchesAsset = xPublishResult?.assetId === asset.id;
   const instagramPublishMatchesAsset = instagramPublishResult?.assetId === asset.id;
   const ghostPublishMatchesAsset = ghostPublishResult?.assetId === asset.id;
   const youtubePublishMatchesAsset = youtubePublishResult?.assetId === asset.id;
@@ -1238,6 +1246,20 @@ function AssetDocument({
               {isPublishing ? "Publishing..." : "Publish to LinkedIn"}
             </button>
           ) : null}
+          {canPublishX ? (
+            <button
+              className="primary-button small"
+              onClick={() => onPublishX(asset)}
+              type="button"
+              disabled={isXPublishing}
+            >
+              {isXPublishing
+                ? "Publishing..."
+                : (asset.assetType || "").toLowerCase() === "twitter_thread"
+                  ? "Publish thread to X"
+                  : "Publish to X"}
+            </button>
+          ) : null}
           {canPublishInstagram ? (
             <button
               className="primary-button small"
@@ -1280,6 +1302,26 @@ function AssetDocument({
             ) : (
               <p className="muted-copy">
                 Publish this LinkedIn asset directly to your connected account.
+              </p>
+            )}
+          </div>
+        ) : null}
+        {canPublishX ? (
+          <div className="asset-publish-status">
+            {xPublishMatchesAsset && xPublishError ? (
+              <p className="error">{xPublishError}</p>
+            ) : xPublishMatchesAsset && xPublishStatus === "success" ? (
+              <p className="success">
+                {(asset.assetType || "").toLowerCase() === "twitter_thread" ? "X thread published" : "X post published"}
+                {xPublishResult?.published_count
+                  ? ` (${xPublishResult.published_count} post${xPublishResult.published_count === 1 ? "" : "s"})`
+                  : xPublishResult?.x_post_id
+                    ? ` (${xPublishResult.x_post_id})`
+                    : ""}.
+              </p>
+            ) : (
+              <p className="muted-copy">
+                Publish this {(asset.assetType || "").toLowerCase() === "twitter_thread" ? "thread" : "post"} directly to your connected X account.
               </p>
             )}
           </div>
@@ -1591,6 +1633,10 @@ export default function WorkspacePage({
   linkedinPublishStatus,
   linkedinPublishError,
   linkedinPublishResult,
+  onPublishX,
+  xPublishStatus,
+  xPublishError,
+  xPublishResult,
   onPublishInstagram,
   instagramPublishStatus,
   instagramPublishError,
@@ -1714,6 +1760,10 @@ export default function WorkspacePage({
                 linkedinPublishStatus={linkedinPublishStatus}
                 linkedinPublishError={linkedinPublishError}
                 linkedinPublishResult={linkedinPublishResult}
+                onPublishX={onPublishX}
+                xPublishStatus={xPublishStatus}
+                xPublishError={xPublishError}
+                xPublishResult={xPublishResult}
                 onPublishInstagram={onPublishInstagram}
                 instagramPublishStatus={instagramPublishStatus}
                 instagramPublishError={instagramPublishError}

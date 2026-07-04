@@ -136,7 +136,7 @@ const AVAILABLE_INTEGRATIONS = [
     icon: <IconLinkedIn />,
   },
   {
-    id: "twitter",
+    id: "x",
     name: "X / Twitter",
     platform: "publishing",
     category: "Publishing",

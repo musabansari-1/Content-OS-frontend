@@ -84,6 +84,9 @@ export function AppProvider({ children }) {
   const [linkedinPublishStatus, setLinkedinPublishStatus] = useState("idle");
   const [linkedinPublishError, setLinkedinPublishError] = useState("");
   const [linkedinPublishResult, setLinkedinPublishResult] = useState(null);
+  const [xPublishStatus, setXPublishStatus] = useState("idle");
+  const [xPublishError, setXPublishError] = useState("");
+  const [xPublishResult, setXPublishResult] = useState(null);
   const [instagramPublishStatus, setInstagramPublishStatus] = useState("idle");
   const [instagramPublishError, setInstagramPublishError] = useState("");
   const [instagramPublishResult, setInstagramPublishResult] = useState(null);
@@ -285,6 +288,7 @@ export function AppProvider({ children }) {
 
     const platformLabel = {
       linkedin: "LinkedIn",
+      x: "X",
       instagram: "Instagram",
       tiktok: "TikTok",
       ghost: "Ghost",
@@ -1197,6 +1201,36 @@ export function AppProvider({ children }) {
     }
   };
 
+  const handlePublishXAsset = async (asset) => {
+    if (!asset) {
+      setXPublishError("Select an X asset first.");
+      return;
+    }
+
+    const assetType = String(asset.assetType || "").toLowerCase();
+    if (!["x_post", "twitter_thread"].includes(assetType)) {
+      setXPublishError("Only X posts and X threads can be published to X.");
+      return;
+    }
+
+    setXPublishStatus("loading");
+    setXPublishError("");
+    setXPublishResult(null);
+
+    try {
+      const response = await authenticatedFetch("/x/publish", {
+        method: "POST",
+        body: JSON.stringify({ asset }),
+      });
+      setXPublishResult({ assetId: asset.id, ...response });
+      setXPublishStatus("success");
+    } catch (error) {
+      setXPublishStatus("error");
+      setXPublishError(error.message);
+      setXPublishResult({ assetId: asset.id, error: error.message });
+    }
+  };
+
   const handlePublishInstagramAsset = async (asset) => {
     if (!asset) {
       setInstagramPublishError("Select an Instagram asset first.");
@@ -1650,6 +1684,7 @@ export function AppProvider({ children }) {
       handleDeleteCampaign,
       handleToggleCampaignAsset,
       handlePublishLinkedInAsset,
+      handlePublishXAsset,
       handlePublishInstagramAsset,
       handlePublishGhostAsset,
       handlePublishYouTubeAsset,
@@ -1665,6 +1700,9 @@ export function AppProvider({ children }) {
       linkedinPublishStatus,
       linkedinPublishError,
       linkedinPublishResult,
+      xPublishStatus,
+      xPublishError,
+      xPublishResult,
       instagramPublishStatus,
       instagramPublishError,
       instagramPublishResult,
@@ -1759,6 +1797,9 @@ export function AppProvider({ children }) {
       linkedinPublishError,
       linkedinPublishResult,
       linkedinPublishStatus,
+      xPublishError,
+      xPublishResult,
+      xPublishStatus,
       instagramPublishError,
       instagramPublishResult,
       instagramPublishStatus,
