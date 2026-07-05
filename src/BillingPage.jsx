@@ -8,6 +8,17 @@ function formatUsageValue(value, limit) {
   return `${value}/${limit}`;
 }
 
+function getUsagePercent(value, limit) {
+  const numericValue = Number(value);
+  const numericLimit = Number(limit);
+
+  if (!Number.isFinite(numericValue) || !Number.isFinite(numericLimit) || numericLimit <= 0) {
+    return null;
+  }
+
+  return (numericValue / numericLimit) * 100;
+}
+
 function formatPeriodEnd(value) {
   if (!value) return "No renewal date yet";
   return new Intl.DateTimeFormat(undefined, {
@@ -113,19 +124,27 @@ export default function BillingPage() {
         <div className="billing-usage-grid">
           <UsageCard
             label="Assets this month"
-            value={formatUsageValue(
+            meterPercent={getUsagePercent(
               billingSummary.usage.assets_generated,
               billingSummary.limits.assets_per_month,
             )}
             remaining={`${billingSummary.remaining.assets_remaining} left`}
+            value={formatUsageValue(
+              billingSummary.usage.assets_generated,
+              billingSummary.limits.assets_per_month,
+            )}
           />
           <UsageCard
             label="Direct publishes"
-            value={formatUsageValue(
+            meterPercent={getUsagePercent(
               billingSummary.usage.direct_publishes,
               billingSummary.limits.direct_publishes_per_month,
             )}
             remaining={`${billingSummary.remaining.direct_publishes_remaining} left`}
+            value={formatUsageValue(
+              billingSummary.usage.direct_publishes,
+              billingSummary.limits.direct_publishes_per_month,
+            )}
           />
           <UsageCard
             label="Subscription status"
@@ -158,15 +177,22 @@ export default function BillingPage() {
           return (
             <article
               key={plan.code}
-              className={`billing-plan-card ${isCurrentPlan ? "billing-plan-current" : ""}`}
+              className={[
+                "billing-plan-card",
+                isCurrentPlan ? "billing-plan-current billing-plan-featured" : "",
+                plan.code === "pro" && !isCurrentPlan ? "billing-plan-featured" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
             >
+              {isCurrentPlan ? <span className="billing-plan-ribbon">Current</span> : null}
               <div className="billing-plan-top">
                 <div>
                   <p className="billing-plan-kicker">{plan.label}</p>
                   <h2>{plan.code === "pro" ? "$10.99" : plan.code === "max" ? "$29" : "$0"}</h2>
                   <span>{plan.code === "free" ? "Get started" : "per month"}</span>
                 </div>
-                {isCurrentPlan ? <span className="billing-plan-badge">Current</span> : null}
+                {isCurrentPlan ? <span className="billing-plan-badge">Active</span> : null}
               </div>
 
               <div className="billing-plan-metrics">
@@ -213,11 +239,19 @@ export default function BillingPage() {
   );
 }
 
-function UsageCard({ label, value, remaining }) {
+function UsageCard({ label, value, remaining, meterPercent = null }) {
   return (
     <div className="billing-usage-card">
       <span>{label}</span>
       <strong>{value}</strong>
+      {meterPercent !== null ? (
+        <div aria-hidden="true" className="billing-usage-meter">
+          <div
+            className="billing-usage-meter-fill"
+            style={{ width: `${Math.min(100, Math.max(0, meterPercent))}%` }}
+          />
+        </div>
+      ) : null}
       <p>{remaining}</p>
     </div>
   );

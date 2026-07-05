@@ -458,7 +458,7 @@ export default function IntegrationsPage() {
         </div>
       ) : null}
 
-      <div className="workflow-preview">
+      <div className="workflow-preview workflow-preview-animated">
         <div className="workflow-step">
           <div className="workflow-icon"><IconVideo /></div>
           <p className="workflow-label">Generate Content</p>
@@ -570,6 +570,9 @@ function IntegrationCard({
       <div className="integration-card-top">
         <div className="integration-icon-wrapper">
           <div className="integration-icon">{integration.icon}</div>
+          {isConnected ? (
+            <span aria-label="Connected" className="integration-connected-dot" />
+          ) : null}
         </div>
         <div className="integration-info">
           <h3>{integration.name}</h3>

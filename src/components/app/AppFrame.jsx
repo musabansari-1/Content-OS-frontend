@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { GenerationLoader } from "./WorkspacePage";
 import { useAppState } from "./AppProvider";
 import { APP_NAME, GOOGLE_CLIENT_ID } from "../../lib/appConstants";
+import { Icon, NavLink } from "../ui";
 
 function InlineInfoIcon({ className = "h-4 w-4" }) {
   return (
@@ -415,6 +416,96 @@ function AuthCard({ authSectionRef }) {
         {authError ? <p className="m-0 text-sm text-rose-300">{authError}</p> : null}
       </div>
     </section>
+  );
+}
+
+const NAV_ITEMS = [
+  { route: "home", href: "/", label: "Main", icon: "home" },
+  { route: "workspace", href: "/workspace", label: "Workspace", icon: "workspace" },
+  { route: "calendar", href: "/calendar", label: "Calendar", icon: "calendar" },
+  {
+    route: "integrations",
+    href: "/integrations",
+    label: "Integrations",
+    icon: "integrations",
+  },
+  { route: "billing", href: "/billing", label: "Billing", icon: "billing" },
+];
+
+function UserMenu({ user, billingSummary, onLogout }) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event) => {
+      if (!menuRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [open]);
+
+  return (
+    <div className="header-user-menu" ref={menuRef}>
+      <button
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className="user-menu-trigger"
+        onClick={() => setOpen((value) => !value)}
+        type="button"
+      >
+        <div className="user-avatar">{user.display_name.slice(0, 2).toUpperCase()}</div>
+        <div className="user-info">
+          <span className="user-name">{user.display_name}</span>
+          <span className="user-email">{user.email}</span>
+        </div>
+        <Icon className="user-menu-chevron h-4 w-4" name="chevronDown" />
+      </button>
+
+      {open ? (
+        <div className="user-menu-dropdown" role="menu">
+          <div className="user-menu-header">
+            <span className="user-name">{user.display_name}</span>
+            <span className="user-email">{user.email}</span>
+            {billingSummary ? (
+              <div className="user-menu-plan">
+                <span>Plan</span>
+                <strong>{billingSummary.plan_label}</strong>
+              </div>
+            ) : null}
+          </div>
+          <button
+            className="user-menu-item danger"
+            onClick={() => {
+              setOpen(false);
+              onLogout();
+            }}
+            role="menuitem"
+            type="button"
+          >
+            <Icon className="h-4 w-4" name="logout" />
+            Logout
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -968,70 +1059,34 @@ export default function AppFrame({ route, children }) {
       <div className="ambient ambient-2" />
 
       <main className="app workspace-layout">
-        <header className="header">
-          <div className="header-brand">
+        <header className="header-premium">
+          <div className="header-brand-compact">
             <div className="brand-mark">CB</div>
             <div className="brand-text">
               <span className="brand-name">{APP_NAME}</span>
-              <span className="brand-tagline">Content workspace</span>
+              <span className="brand-tagline">
+                Hi, {user.display_name} · Create once. Repurpose everywhere.
+              </span>
             </div>
           </div>
-          <div className="header-divider" />
-          <div className="header-greeting">
-            <p className="greeting-name">
-              Hi, <span>{user.display_name}</span>
-            </p>
-            <p className="greeting-sub">Create once. Repurpose everywhere.</p>
-          </div>
-          <nav className="header-nav">
-            <Link className={`nav-btn ${route === "home" ? "active" : ""}`} href="/">
-              Main page
-            </Link>
-            <Link
-              className={`nav-btn ${route === "workspace" ? "active" : ""}`}
-              href="/workspace"
-            >
-              Workspace
-            </Link>
-            <Link
-              className={`nav-btn ${route === "calendar" ? "active" : ""}`}
-              href="/calendar"
-            >
-              Calendar
-            </Link>
-            <Link
-              className={`nav-btn ${route === "integrations" ? "active" : ""}`}
-              href="/integrations"
-            >
-              Integrations
-            </Link>
-            <Link
-              className={`nav-btn ${route === "billing" ? "active" : ""}`}
-              href="/billing"
-            >
-              Billing
-            </Link>
+
+          <nav aria-label="Main navigation" className="header-nav-premium">
+            {NAV_ITEMS.map((item) => (
+              <NavLink
+                key={item.route}
+                active={route === item.route}
+                href={item.href}
+                icon={item.icon}
+                label={item.label}
+              />
+            ))}
           </nav>
-          <div className="header-right">
-            {billingSummary ? (
-              <div className="plan-pill">
-                <span className="plan-pill-label">Plan</span>
-                <strong>{billingSummary.plan_label}</strong>
-              </div>
-            ) : null}
-            <div className="user-pill">
-              <div className="user-avatar">
-                {user.display_name.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="user-info">
-                <span className="user-name">{user.display_name}</span>
-                <span className="user-email">{user.email}</span>
-              </div>
-            </div>
-            <button className="logout-btn" onClick={handleLogout} type="button">
-              Logout
-            </button>
-          </div>
+
+          <UserMenu
+            billingSummary={billingSummary}
+            onLogout={handleLogout}
+            user={user}
+          />
         </header>
 
         {showVerificationBanner ? (
