@@ -9,6 +9,6 @@ export default function manifest() {
     start_url: SITE_URL,
     display: "standalone",
     background_color: "#0f141c",
-    theme_color: "#d8a36f",
+    theme_color: "#ff8a3d",
   };
 }

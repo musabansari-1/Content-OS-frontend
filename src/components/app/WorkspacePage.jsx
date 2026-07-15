@@ -28,6 +28,7 @@ import {
   splitEditableList,
 } from "../../lib/appUtils";
 import { APP_NAME } from "../../lib/appConstants";
+import { Icon } from "../ui";
 
 function getVideoDownloadFilename(asset) {
   const rawTitle = String(asset?.title || asset?.media?.label || "generated-clip")
@@ -219,7 +220,12 @@ function StatusLane({
           <span className="status-lane-dot" style={{ background: meta.dot }} />
           <span className="status-lane-title">{meta.label}</span>
           <span className="status-lane-count">{assets.length}</span>
-          <span className="status-lane-chevron">{isCollapsed ? ">" : "v"}</span>
+          <span className="status-lane-chevron" aria-hidden="true">
+            <Icon
+              name={isCollapsed ? "chevronRight" : "chevronDown"}
+              className="h-4 w-4"
+            />
+          </span>
         </button>
       </header>
 
@@ -315,7 +321,10 @@ function ScheduledPostsPanel({
           <span className="scheduled-posts-toggle-meta">
             {orderedPosts.length ? <span className="summary-tag">{orderedPosts.length} queued</span> : null}
             <span className="scheduled-posts-toggle-chevron" aria-hidden="true">
-              {isExpanded ? "v" : ">"}
+              <Icon
+                name={isExpanded ? "chevronDown" : "chevronRight"}
+                className="h-4 w-4"
+              />
             </span>
           </span>
         </button>
@@ -1691,16 +1700,16 @@ export default function WorkspacePage({
       ) : null}
       {assets.length ? (
         <>
-          <div className="results-header workspace-results-header">
-            <div>
+          <div className="results-header workspace-results-header ui-page-header">
+            <div className="ui-page-header-copy">
               <p className="eyebrow">Asset workspace</p>
               <h2>Generate, refine, organize, reuse</h2>
-              <p className="muted-copy">
+              <p className="muted-copy ui-page-header-subtitle">
                 Drag assets between lanes to update their status, or click the pill
                 on any card.
               </p>
             </div>
-            <div className="workspace-results-actions">
+            <div className="workspace-results-actions ui-page-header-actions">
               {lastGeneratedCount ? (
                 <span className="summary-tag">
                   {lastGeneratedCount} new{" "}

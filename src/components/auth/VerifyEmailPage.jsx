@@ -83,26 +83,26 @@ export default function VerifyEmailPage({ initialToken = "" }) {
       eyebrow="Email verification"
       title="Confirm your email"
     >
-      <div className="grid gap-4 rounded-[1.5rem] border border-white/10 bg-[#151b25]/80 p-5 shadow-xl shadow-black/20">
+      <div className="grid gap-4 rounded-xl border border-white/10 bg-bg-elevated/80 p-5 shadow-panel">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#d8a36f]">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-warning">
             Status
           </p>
-          <p className="mt-3 text-base leading-7 text-[#f6efe7]">{message}</p>
+          <p className="mt-3 text-base leading-7 text-ink">{message}</p>
         </div>
 
         {status === "loading" ? (
-          <p className="text-sm text-[#b9aca0]">Verification is in progress. This usually takes a moment.</p>
+          <p className="text-sm text-muted">Verification is in progress. This usually takes a moment.</p>
         ) : null}
 
         {error ? (
-          <div className="rounded-2xl border border-[#f87171]/30 bg-[#f87171]/10 px-4 py-3 text-sm text-[#fecaca]">
+          <div className="ui-notice ui-notice-error">
             {error}
           </div>
         ) : null}
 
         {!initialToken ? (
-          <p className="text-sm leading-6 text-[#b9aca0]">
+          <p className="text-sm leading-6 text-muted">
             If you opened this page without a token, return to your inbox and use the full verification link from the email.
           </p>
         ) : null}
@@ -110,7 +110,7 @@ export default function VerifyEmailPage({ initialToken = "" }) {
         {user && !user.email_verified ? (
           <div className="flex flex-wrap gap-3 pt-2">
             <button
-              className="rounded-full bg-[#d8a36f] px-5 py-3 text-sm font-semibold text-[#111820] transition hover:-translate-y-0.5 hover:bg-[#e4b47f]"
+              className="ui-btn ui-btn-primary ui-btn-pill ui-btn-md"
               disabled={verificationStatus === "loading"}
               onClick={handleResendClick}
               type="button"

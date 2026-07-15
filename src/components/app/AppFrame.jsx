@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { GenerationLoader } from "./WorkspacePage";
 import { useAppState } from "./AppProvider";
 import { APP_NAME, GOOGLE_CLIENT_ID } from "../../lib/appConstants";
-import { Icon, NavLink } from "../ui";
+import { Icon, NavLink, BrandMark, Notice } from "../ui";
 
 function InlineInfoIcon({ className = "h-4 w-4" }) {
   return (
@@ -34,36 +34,13 @@ function AuthNotice({
   actionUrl = "",
   actionLabel = "",
 }) {
-  if (!message) {
-    return null;
-  }
-
-  const toneClasses = {
-    info: "border-sky-400/25 bg-sky-400/10 text-sky-50",
-    success: "border-emerald-400/25 bg-emerald-400/10 text-emerald-50",
-    warning: "border-amber-300/30 bg-amber-300/10 text-amber-50",
-    error: "border-rose-400/25 bg-rose-400/10 text-rose-50",
-  };
-
   return (
-    <div
-      className={[
-        "rounded-3xl border px-4 py-3 text-sm leading-6 shadow-[0_18px_60px_rgba(0,0,0,0.18)]",
-        toneClasses[kind] || toneClasses.info,
-      ].join(" ")}
-    >
-      <p className="m-0">{message}</p>
-      {actionUrl && actionLabel ? (
-        <a
-          className="mt-2 inline-flex text-sm font-semibold text-white underline decoration-white/35 underline-offset-4 transition hover:decoration-white"
-          href={actionUrl}
-          rel="noreferrer"
-          target="_blank"
-        >
-          {actionLabel}
-        </a>
-      ) : null}
-    </div>
+    <Notice
+      message={message}
+      kind={kind}
+      actionUrl={actionUrl}
+      actionLabel={actionLabel}
+    />
   );
 }
 
@@ -171,13 +148,13 @@ function GoogleSignInButton({ authMode, authConsentAccepted }) {
         />
       </div>
       {consentRequired ? (
-        <p className="m-0 inline-flex items-center gap-2 text-sm text-[#9aa6b8]">
-          <InlineInfoIcon className="h-4 w-4 shrink-0 text-[#f2a666]" />
+        <p className="m-0 inline-flex items-center gap-2 text-sm text-muted">
+          <InlineInfoIcon className="h-4 w-4 shrink-0 text-warning" />
           Agree to the terms below to continue with Google.
         </p>
       ) : null}
       {googleAuthStatus === "loading" ? (
-        <p className="m-0 text-sm text-[#9aa6b8]">Signing in with Google...</p>
+        <p className="m-0 text-sm text-muted">Signing in with Google...</p>
       ) : null}
       {scriptError ? <p className="m-0 text-sm text-rose-300">{scriptError}</p> : null}
       {googleAuthError ? <p className="m-0 text-sm text-rose-300">{googleAuthError}</p> : null}
@@ -206,25 +183,24 @@ function AuthCard({ authSectionRef }) {
   const isConsentBlocked = isRegisterMode && !authConsentAccepted;
   const isSubmitLoading = authStatus === "loading";
   const toggleBaseClasses =
-    "rounded-full px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#ff8a3d]/40";
-  const fieldClasses =
-    "w-full rounded-2xl border border-white/10 bg-[#101a28] px-4 py-3 text-sm text-white placeholder:text-[#718096] focus:border-[#ff8a3d]/45 focus:outline-none focus:ring-2 focus:ring-[#ff8a3d]/20";
+    "rounded-full px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-accent/40";
+  const fieldClasses = "ui-input";
   const submitButtonClasses = [
-    "mt-2 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition",
+    "ui-btn ui-btn-lg ui-btn-pill mt-2 w-full",
     isConsentBlocked
-      ? "cursor-not-allowed border border-white/10 bg-white/8 text-[#8d9ab0] shadow-none"
-      : "bg-[#ff8a3d] text-[#0c1420] shadow-[0_18px_40px_rgba(255,138,61,0.28)] hover:-translate-y-0.5 hover:bg-[#ff9e59]",
+      ? "ui-btn-ghost cursor-not-allowed opacity-60"
+      : "ui-btn-primary",
     isSubmitLoading ? "cursor-wait opacity-70" : "",
   ].join(" ");
 
   return (
     <section
-      className="rounded-[2rem] border border-white/10 bg-[#08131f]/92 p-6 text-white shadow-[0_30px_90px_rgba(0,0,0,0.35)] backdrop-blur"
+      className="rounded-2xl border border-white/10 bg-bg-elevated p-6 text-white shadow-panel backdrop-blur"
       id="auth"
       ref={authSectionRef}
     >
       <div className="mb-6">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f2a666]">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-warning">
           Start now
         </p>
         <h2 className="m-0 text-[1.9rem] font-semibold tracking-tight text-white">
@@ -234,7 +210,7 @@ function AuthCard({ authSectionRef }) {
               ? "Welcome back"
               : "Create your content workspace"}
         </h2>
-        <p className="mt-3 text-sm leading-7 text-[#9aa6b8]">
+        <p className="mt-3 text-sm leading-7 text-muted">
           {isForgotMode
             ? "Enter your email and we will send you a secure reset link."
             : authMode === "login"
@@ -250,7 +226,7 @@ function AuthCard({ authSectionRef }) {
               toggleBaseClasses,
               authMode === "login"
                 ? "bg-white text-[#0c1420] shadow-sm"
-                : "text-[#9aa6b8] hover:text-white",
+                : "text-muted hover:text-white",
             ].join(" ")}
             onClick={() => setAuthMode("login")}
             type="button"
@@ -261,8 +237,8 @@ function AuthCard({ authSectionRef }) {
             className={[
               toggleBaseClasses,
               authMode === "register"
-                ? "bg-[#ff8a3d] text-[#0c1420] shadow-[0_12px_28px_rgba(255,138,61,0.25)]"
-                : "text-[#9aa6b8] hover:text-white",
+                ? "bg-accent text-[#0c1420] shadow-[0_12px_28px_rgba(255,138,61,0.25)]"
+                : "text-muted hover:text-white",
             ].join(" ")}
             onClick={() => setAuthMode("register")}
             type="button"
@@ -324,7 +300,7 @@ function AuthCard({ authSectionRef }) {
             <span>
               I agree to the{" "}
               <Link
-                className="font-semibold text-[#f2a666] underline decoration-[#f2a666]/35 underline-offset-4 transition hover:text-[#ffd2ad] hover:decoration-[#ffd2ad]"
+                className="font-semibold text-warning underline decoration-[#f2a666]/35 underline-offset-4 transition hover:text-[#ffd2ad] hover:decoration-[#ffd2ad]"
                 href="/terms"
                 rel="noreferrer"
                 target="_blank"
@@ -333,7 +309,7 @@ function AuthCard({ authSectionRef }) {
               </Link>{" "}
               and acknowledge that I have read the{" "}
               <Link
-                className="font-semibold text-[#f2a666] underline decoration-[#f2a666]/35 underline-offset-4 transition hover:text-[#ffd2ad] hover:decoration-[#ffd2ad]"
+                className="font-semibold text-warning underline decoration-[#f2a666]/35 underline-offset-4 transition hover:text-[#ffd2ad] hover:decoration-[#ffd2ad]"
                 href="/privacy"
                 rel="noreferrer"
                 target="_blank"
@@ -362,7 +338,7 @@ function AuthCard({ authSectionRef }) {
             </>
           ) : isConsentBlocked ? (
             <>
-              <InlineInfoIcon className="h-4 w-4 text-[#f2a666]" />
+              <InlineInfoIcon className="h-4 w-4 text-warning" />
               <span>Agree to continue</span>
             </>
           ) : (
@@ -377,7 +353,7 @@ function AuthCard({ authSectionRef }) {
         </button>
         {isConsentBlocked ? (
           <p className="m-0 inline-flex items-center gap-2 text-sm text-[#8d9ab0]">
-            <InlineInfoIcon className="h-4 w-4 shrink-0 text-[#f2a666]" />
+            <InlineInfoIcon className="h-4 w-4 shrink-0 text-warning" />
             Agree to the terms to create your account.
           </p>
         ) : null}
@@ -398,7 +374,7 @@ function AuthCard({ authSectionRef }) {
 
       <div className="mt-4 flex justify-end">
         <button
-          className="text-sm font-semibold text-[#f2a666] transition hover:text-[#ffd2ad]"
+          className="text-sm font-semibold text-warning transition hover:text-[#ffd2ad]"
           onClick={() => setAuthMode(isForgotMode ? "login" : "forgot")}
           type="button"
         >
@@ -582,69 +558,67 @@ function AuthScreen() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#0f141c] text-[#f6efe7]">
+    <div className="relative min-h-screen bg-bg text-[#f6efe7]">
       <main className="relative z-10 mx-auto w-full max-w-7xl px-5 py-6 sm:px-8 lg:px-10">
-        <header className="sticky top-4 z-30 flex flex-col gap-4 rounded-[1.6rem] border border-white/10 bg-[#08111c]/82 px-4 py-4 backdrop-blur xl:flex-row xl:items-center xl:justify-between">
+        <header className="sticky top-4 z-30 flex flex-col gap-4 rounded-2xl border border-white/10 bg-bg-elevated/90 px-4 py-4 backdrop-blur xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-[#d8a36f] to-[#8fb8b2] font-bold text-[#111820] shadow-lg shadow-[#d8a36f]/20">
-              CB
-            </div>
+            <BrandMark size="md" />
 
             <div className="flex flex-col">
               <span className="text-base font-semibold tracking-tight">
                 {APP_NAME}
               </span>
-              <span className="text-xs text-[#b9aca0]">
+              <span className="text-xs text-muted">
                 AI content studio
               </span>
             </div>
           </div>
 
-          <nav className="flex flex-wrap items-center gap-2 rounded-[1.2rem] border border-white/8 bg-white/4 p-2 text-sm text-[#c8beb4]">
+          <nav className="flex flex-wrap items-center gap-2 rounded-[1.2rem] border border-white/10 bg-white/5 p-2 text-sm text-muted">
             <a
-              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/8 hover:text-white"
+              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/10 hover:text-white"
               href="#features"
             >
               Features
             </a>
             <a
-              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/8 hover:text-white"
+              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/10 hover:text-white"
               href="#workflow"
             >
               Workflow
             </a>
             <a
-              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/8 hover:text-white"
+              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/10 hover:text-white"
               href="#publishing"
             >
               Publishing
             </a>
             <a
-              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/8 hover:text-white"
+              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/10 hover:text-white"
               href="#plans"
             >
               Plans
             </a>
             <Link
-              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/8 hover:text-white"
+              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/10 hover:text-white"
               href="/privacy"
             >
               Privacy
             </Link>
             <Link
-              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/8 hover:text-white"
+              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/10 hover:text-white"
               href="/terms"
             >
               Terms
             </Link>
             <Link
-              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/8 hover:text-white"
+              className="rounded-full px-4 py-2 font-medium transition hover:bg-white/10 hover:text-white"
               href="/support"
             >
               Contact Support
             </Link>
             <a
-              className="rounded-full bg-[#ff8a3d] px-4 py-2 font-semibold text-[#0b1320] transition hover:bg-[#ff9e59]"
+              className="rounded-full bg-accent px-4 py-2 font-semibold text-[#0c1420] transition hover:bg-accent-strong"
               href="#auth"
               onClick={scrollToAuth}
             >
@@ -661,10 +635,10 @@ function AuthScreen() {
             <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
               <div className="grid gap-8">
                 <div className="grid gap-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#f2a666]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-warning">
                     For creators, consultants, and lean teams
                   </p>
-                  <h1 className="max-w-[11ch] font-['Space_Grotesk'] text-[clamp(2.8rem,6vw,5rem)] font-bold leading-[0.94] tracking-tight text-white">
+                  <h1 className="max-w-[11ch] font-display text-[clamp(2.8rem,6vw,5rem)] font-bold leading-[0.94] tracking-tight text-white">
                     Create weeks of content from one strong source.
                   </h1>
                   <p className="max-w-3xl text-base leading-8 text-[#d8e0ea] sm:text-lg">
@@ -677,7 +651,7 @@ function AuthScreen() {
 
                 <div className="flex flex-wrap gap-3">
                   <a
-                    className="inline-flex h-11 items-center justify-center rounded-xl bg-[#ff8a3d] px-5 text-sm font-semibold leading-none text-[#0b1320] shadow-[0_18px_40px_rgba(255,138,61,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff9e59]"
+                    className="inline-flex h-11 items-center justify-center rounded-xl bg-accent px-5 text-sm font-semibold leading-none text-[#0c1420] shadow-[0_18px_40px_rgba(255,138,61,0.28)] transition hover:-translate-y-0.5 hover:bg-accent-strong"
                     href="#auth"
                     onClick={scrollToAuth}
                   >
@@ -700,7 +674,7 @@ function AuthScreen() {
                   ].map((item) => (
                     <span
                       key={item}
-                      className="inline-flex h-9 items-center justify-center rounded-full border border-white/10 bg-white/6 px-4 text-sm font-medium leading-none text-[#e4ecf6]"
+                      className="inline-flex h-9 items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 text-sm font-medium leading-none text-[#e4ecf6]"
                     >
                       {item}
                     </span>
@@ -708,8 +682,8 @@ function AuthScreen() {
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-[1.5rem] border border-white/10 bg-[#09131f]/80 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8fc8b9]">
+                  <div className="rounded-[1.5rem] border border-white/10 bg-bg-elevated/80 p-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7ab8c9]">
                       Why sign up
                     </p>
                     <p className="mt-3 text-sm leading-7 text-[#d5ddea]">
@@ -717,8 +691,8 @@ function AuthScreen() {
                       and billing history stay attached to the same account.
                     </p>
                   </div>
-                  <div className="rounded-[1.5rem] border border-white/10 bg-[#09131f]/80 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8fc8b9]">
+                  <div className="rounded-[1.5rem] border border-white/10 bg-bg-elevated/80 p-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7ab8c9]">
                       Source flexibility
                     </p>
                     <p className="mt-3 text-sm leading-7 text-[#d5ddea]">
@@ -730,23 +704,23 @@ function AuthScreen() {
               </div>
 
               <aside className="grid gap-5">
-                <div className="rounded-[2rem] border border-white/10 bg-[#08111c]/92 p-6 shadow-[0_26px_80px_rgba(0,0,0,0.35)]">
+                <div className="rounded-[2rem] border border-white/10 bg-bg-elevated/92 p-6 shadow-[0_26px_80px_rgba(0,0,0,0.35)]">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f2a666]">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-warning">
                         Inside the product
                       </p>
                       <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
                         One source, one workspace, many outputs
                       </h2>
                     </div>
-                    <span className="inline-flex rounded-full border border-[#8fc8b9]/25 bg-[#8fc8b9]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#cdeee7]">
+                    <span className="inline-flex rounded-full border border-[#7ab8c9]/25 bg-[#7ab8c9]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#cdeee7]">
                       Available now
                     </span>
                   </div>
 
                   <div className="mt-5 grid gap-3">
-                    <div className="rounded-[1.4rem] border border-white/8 bg-white/5 p-4">
+                    <div className="rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9eacc0]">
                         Voice profile
                       </p>
@@ -756,7 +730,7 @@ function AuthScreen() {
                       </p>
                     </div>
 
-                    <div className="rounded-[1.4rem] border border-white/8 bg-white/5 p-4">
+                    <div className="rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9eacc0]">
                         Output types
                       </p>
@@ -764,7 +738,7 @@ function AuthScreen() {
                         {["LinkedIn posts", "Instagram carousels", "Blog posts", "Newsletters", "Short clips"].map((item) => (
                           <span
                             key={item}
-                            className="rounded-full border border-[#8fc8b9]/20 bg-[#8fc8b9]/8 px-3 py-1.5 text-xs font-medium text-[#d5efe9]"
+                            className="rounded-full border border-[#7ab8c9]/20 bg-[#7ab8c9]/8 px-3 py-1.5 text-xs font-medium text-[#d5efe9]"
                           >
                             {item}
                           </span>
@@ -780,7 +754,7 @@ function AuthScreen() {
                       ].map(([title, copy]) => (
                         <div
                           key={title}
-                          className="rounded-[1.25rem] border border-white/8 bg-[#0d1825] p-4"
+                          className="rounded-[1.25rem] border border-white/10 bg-bg-elevated p-4"
                         >
                           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9eacc0]">
                             {title}
@@ -814,14 +788,14 @@ function AuthScreen() {
           >
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f2a666]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-warning">
                   Features
                 </p>
-                <h2 className="mt-2 max-w-[12ch] font-['Space_Grotesk'] text-[clamp(2rem,4vw,3.4rem)] font-bold leading-[1] tracking-tight text-white">
+                <h2 className="mt-2 max-w-[12ch] font-display text-[clamp(2rem,4vw,3.4rem)] font-bold leading-[1] tracking-tight text-white">
                   Everything that keeps content moving after signup.
                 </h2>
               </div>
-              <p className="max-w-2xl text-sm leading-7 text-[#9aa6b8] sm:text-base">
+              <p className="max-w-2xl text-sm leading-7 text-muted sm:text-base">
                 Every card below maps to product behavior that already exists in the
                 app today, so new visitors get a strong pitch without false promises.
               </p>
@@ -830,7 +804,7 @@ function AuthScreen() {
             <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {productPillars.map((feature) => (
                 <article
-                  className="rounded-[1.6rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02)),#0b1521] p-5"
+                  className="rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02)),#0b1521] p-5"
                   key={feature.title}
                 >
                   <span className="inline-flex rounded-full border border-[#f2a666]/20 bg-[#f2a666]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#ffd7b4]">
@@ -839,7 +813,7 @@ function AuthScreen() {
                   <h3 className="mt-4 text-xl font-semibold tracking-tight text-white">
                     {feature.title}
                   </h3>
-                  <p className="mt-3 text-sm leading-7 text-[#9aa6b8]">
+                  <p className="mt-3 text-sm leading-7 text-muted">
                     {feature.copy}
                   </p>
                 </article>
@@ -853,14 +827,14 @@ function AuthScreen() {
           >
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f2a666]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-warning">
                   Workflow
                 </p>
-                <h2 className="mt-2 max-w-[13ch] font-['Space_Grotesk'] text-[clamp(2rem,4vw,3.4rem)] font-bold leading-[1] tracking-tight text-white">
+                <h2 className="mt-2 max-w-[13ch] font-display text-[clamp(2rem,4vw,3.4rem)] font-bold leading-[1] tracking-tight text-white">
                   Sign up once. Stop rebuilding your content process every time.
                 </h2>
               </div>
-              <p className="max-w-2xl text-sm leading-7 text-[#9aa6b8] sm:text-base">
+              <p className="max-w-2xl text-sm leading-7 text-muted sm:text-base">
                 The app is structured around a simple sequence: save your voice,
                 generate assets, refine them in a workspace, and move into scheduling
                 or publishing from there.
@@ -870,16 +844,16 @@ function AuthScreen() {
             <div className="mt-8 grid gap-4 xl:grid-cols-4">
               {workflowSteps.map((step) => (
                 <article
-                  className="rounded-[1.6rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02)),#0b1521] p-5"
+                  className="rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02)),#0b1521] p-5"
                   key={step.step}
                 >
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8fc8b9]">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7ab8c9]">
                     Step {step.step}
                   </span>
                   <h3 className="mt-4 text-xl font-semibold tracking-tight text-white">
                     {step.title}
                   </h3>
-                  <p className="mt-3 text-sm leading-7 text-[#9aa6b8]">
+                  <p className="mt-3 text-sm leading-7 text-muted">
                     {step.copy}
                   </p>
                 </article>
@@ -892,13 +866,13 @@ function AuthScreen() {
               id="publishing"
               className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02)),#08111b] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-8"
             >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f2a666]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-warning">
                 Publishing
               </p>
-              <h2 className="mt-2 max-w-[12ch] font-['Space_Grotesk'] text-[clamp(2rem,4vw,3rem)] font-bold leading-[1] tracking-tight text-white">
+              <h2 className="mt-2 max-w-[12ch] font-display text-[clamp(2rem,4vw,3rem)] font-bold leading-[1] tracking-tight text-white">
                 Connect the channels you already use.
               </h2>
-              <p className="mt-4 text-sm leading-7 text-[#9aa6b8] sm:text-base">
+              <p className="mt-4 text-sm leading-7 text-muted sm:text-base">
                 After signup, you can connect supported platforms in the integrations
                 area and publish supported assets from the workspace when you are ready.
               </p>
@@ -939,13 +913,13 @@ function AuthScreen() {
               id="plans"
               className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02)),#08111b] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-8"
             >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f2a666]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-warning">
                 Plans and account
               </p>
-              <h2 className="mt-2 max-w-[12ch] font-['Space_Grotesk'] text-[clamp(2rem,4vw,3rem)] font-bold leading-[1] tracking-tight text-white">
+              <h2 className="mt-2 max-w-[12ch] font-display text-[clamp(2rem,4vw,3rem)] font-bold leading-[1] tracking-tight text-white">
                 Sign up now and grow into the rest of the product.
               </h2>
-              <p className="mt-4 text-sm leading-7 text-[#9aa6b8] sm:text-base">
+              <p className="mt-4 text-sm leading-7 text-muted sm:text-base">
                 Accounts are already set up for email or Google sign-in, email
                 verification, saved workspaces, billing usage, and plan upgrades from
                 inside the app.
@@ -959,7 +933,7 @@ function AuthScreen() {
                 ].map((item) => (
                   <div
                     key={item}
-                    className="rounded-[1.25rem] border border-white/8 bg-white/5 px-4 py-3 text-sm leading-6 text-[#e4ecf6]"
+                    className="rounded-[1.25rem] border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 text-[#e4ecf6]"
                   >
                     {item}
                   </div>
@@ -967,7 +941,7 @@ function AuthScreen() {
               </div>
 
               <a
-                className="mt-6 inline-flex items-center justify-center rounded-full bg-[#ff8a3d] px-6 py-3 text-sm font-semibold text-[#0b1320] shadow-[0_18px_40px_rgba(255,138,61,0.28)] transition hover:-translate-y-0.5 hover:bg-[#ff9e59]"
+                className="mt-6 inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-[#0c1420] shadow-[0_18px_40px_rgba(255,138,61,0.28)] transition hover:-translate-y-0.5 hover:bg-accent-strong"
                 href="#auth"
                 onClick={scrollToAuth}
               >
@@ -977,11 +951,9 @@ function AuthScreen() {
           </div>
         </div>
 
-        <footer className="mt-12 grid gap-6 rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015)),#07101a] px-6 py-8 text-sm text-[#9aa6b8] shadow-[0_24px_70px_rgba(0,0,0,0.25)] sm:px-8 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
+        <footer className="mt-12 grid gap-6 rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015)),#07101a] px-6 py-8 text-sm text-muted shadow-[0_24px_70px_rgba(0,0,0,0.25)] sm:px-8 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
           <div className="flex items-start gap-4">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#ff8a3d] to-[#8fc8b9] font-bold text-[#09111b]">
-              CB
-            </div>
+            <BrandMark size="lg" />
             <div>
               <p className="m-0 text-base font-semibold text-white">{APP_NAME}</p>
               <p className="mt-2 max-w-xl leading-6">
@@ -991,7 +963,7 @@ function AuthScreen() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 text-white/85">
+          <div className="flex flex-wrap gap-3 text-white/80">
             <Link className="transition hover:text-white" href="/privacy">
               Privacy Policy
             </Link>
@@ -1061,7 +1033,7 @@ export default function AppFrame({ route, children }) {
       <main className="app workspace-layout">
         <header className="header-premium">
           <div className="header-brand-compact">
-            <div className="brand-mark">CB</div>
+            <BrandMark size="md" />
             <div className="brand-text">
               <span className="brand-name">{APP_NAME}</span>
               <span className="brand-tagline">

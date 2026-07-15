@@ -51,11 +51,12 @@ export default function ResetPasswordPage({ initialToken = "" }) {
       eyebrow="Password reset"
       title="Set a new password"
     >
-      <div className="rounded-[1.5rem] border border-white/10 bg-[#151b25]/80 p-5 shadow-xl shadow-black/20">
+      <div className="rounded-xl border border-white/10 bg-bg-elevated/80 p-5 shadow-panel">
         <form className="stack-form" onSubmit={handleSubmit}>
           <label className="field">
             <span>New password</span>
             <input
+              className="ui-input"
               autoComplete="new-password"
               onChange={(event) => setPassword(event.target.value)}
               placeholder="At least 8 characters"
@@ -67,6 +68,7 @@ export default function ResetPasswordPage({ initialToken = "" }) {
           <label className="field">
             <span>Confirm new password</span>
             <input
+              className="ui-input"
               autoComplete="new-password"
               onChange={(event) => setConfirmPassword(event.target.value)}
               placeholder="Repeat your new password"
@@ -76,7 +78,7 @@ export default function ResetPasswordPage({ initialToken = "" }) {
           </label>
 
           <button
-            className="primary-button"
+            className="ui-btn ui-btn-primary ui-btn-md ui-btn-pill"
             disabled={status === "loading"}
             type="submit"
           >

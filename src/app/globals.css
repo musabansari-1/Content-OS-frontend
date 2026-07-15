@@ -7,9 +7,17 @@
 @layer base {
   html {
     color-scheme: dark;
+    scroll-behavior: smooth;
   }
 
   body {
     min-height: 100vh;
+    font-family: "Manrope", "Segoe UI", sans-serif;
+  }
+
+  h1,
+  h2,
+  .font-display {
+    font-family: "Space Grotesk", "Manrope", sans-serif;
   }
 }

@@ -71,11 +71,11 @@ export default function BillingPage() {
 
   return (
     <section className="billing-page">
-      <div className="billing-header">
-        <div>
+      <div className="billing-header ui-page-header">
+        <div className="ui-page-header-copy">
           <p className="eyebrow">Billing</p>
           <h1>Choose the plan that matches your publishing pace</h1>
-          <p className="billing-subtitle">
+          <p className="billing-subtitle ui-page-header-subtitle">
             Keep track of your monthly usage, compare plans, and upgrade when you need
             more room to generate and publish.
           </p>
@@ -89,12 +89,12 @@ export default function BillingPage() {
         ) : null}
       </div>
 
-      {pageNotice ? <div className="billing-banner success">{pageNotice}</div> : null}
-      {billingError ? <div className="billing-banner error">{billingError}</div> : null}
-      {billingCheckoutError ? <div className="billing-banner error">{billingCheckoutError}</div> : null}
-      {billingCancelError ? <div className="billing-banner error">{billingCancelError}</div> : null}
+      {pageNotice ? <div className="billing-banner success ui-notice ui-notice-success">{pageNotice}</div> : null}
+      {billingError ? <div className="billing-banner error ui-notice ui-notice-error">{billingError}</div> : null}
+      {billingCheckoutError ? <div className="billing-banner error ui-notice ui-notice-error">{billingCheckoutError}</div> : null}
+      {billingCancelError ? <div className="billing-banner error ui-notice ui-notice-error">{billingCancelError}</div> : null}
       {billingCancelStatus === "success" ? (
-        <div className="billing-banner success">
+        <div className="billing-banner success ui-notice ui-notice-success">
           Your subscription will cancel at the end of the current billing period.
         </div>
       ) : null}

@@ -435,11 +435,11 @@ export default function IntegrationsPage() {
 
   return (
     <section className="integrations-page">
-      <div className="integrations-header">
-        <div>
+      <div className="integrations-header ui-page-header">
+        <div className="ui-page-header-copy">
           <p className="eyebrow">Integrations</p>
           <h1>Connect your platforms</h1>
-          <p className="integrations-subtitle">
+          <p className="integrations-subtitle ui-page-header-subtitle">
             Connect your platforms to publish, schedule, and manage content
             directly from the workspace.
           </p>

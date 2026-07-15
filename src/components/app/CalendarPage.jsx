@@ -563,15 +563,15 @@ export default function CalendarPage({
 
   return (
     <section className="calendar-page">
-      <div className="calendar-header">
-        <div>
+      <div className="calendar-header ui-page-header">
+        <div className="ui-page-header-copy">
           <p className="eyebrow">Calendar and bulk scheduling</p>
           <h1>Plan the next five weeks of repurposed content</h1>
-          <p className="calendar-subtitle">
+          <p className="calendar-subtitle ui-page-header-subtitle">
             See what is already scheduled, spot open publishing days, and turn a YouTube generation batch into a full rollout from one place.
           </p>
         </div>
-        <div className="calendar-header-actions">
+        <div className="calendar-header-actions ui-page-header-actions">
           <span className={`save-indicator save-indicator-${plannerSaveStatus}`}>
             <span className="save-indicator-dot" />
             Planner {plannerSaveStatus === "idle" ? "ready" : plannerSaveStatus}
