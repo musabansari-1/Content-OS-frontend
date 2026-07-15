@@ -3,7 +3,7 @@ import { APP_NAME, SUPPORT_EMAIL } from "./appConstants";
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://contentburst.app";
 
-export const SITE_TITLE = "10x your reach with 1x effort";
+export const SITE_TITLE = "Content Burst";
 export const SITE_DESCRIPTION =
   "Turn one YouTube video into platform-native assets that drive traffic back to the original video.";
 export const OG_IMAGE_PATH = "/og-image-v2.png";
