@@ -1563,13 +1563,16 @@ export function GenerationLoader({ job, selectedAssets, targetAssets }) {
   }, [assetProgress, job, steps]);
 
   return (
-    <div className="loader-overlay">
+    <div
+      aria-live="polite"
+      className="loader-overlay generation-status-dock"
+      role="status"
+    >
       <div className="loader-card">
         <div className="loader-orb" />
-        <p className="loader-badge">{APP_NAME} is generating</p>
-        <h2>Building your asset pack</h2>
+        <p className="loader-badge">{APP_NAME} is generating in the background</p>
         <p className="loader-copy">
-          {job?.detail || "Your request is in progress and the final content is on the way."}
+          {job?.detail || "You can keep using the workspace while we finish your content."}
         </p>
         <div className="loader-progress-shell">
           <div className="loader-progress-top">

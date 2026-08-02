@@ -1406,23 +1406,63 @@ textarea {
 
 .loader-overlay {
   position: fixed;
-  inset: 0;
+  right: 24px;
+  bottom: 24px;
+  left: auto;
   z-index: 40;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  overflow-y: auto;
-  padding: clamp(12px, 3vh, 28px) 0;
-  background: rgba(6, 12, 22, 0.68);
-  backdrop-filter: blur(18px);
+  width: min(320px, calc(100% - 32px));
+  pointer-events: none;
 }
 
 .loader-card {
-  width: min(540px, calc(100% - 32px));
-  max-height: calc(100vh - clamp(24px, 6vh, 56px));
-  padding: 32px;
+  width: 100%;
+  max-height: min(80vh, 620px);
+  padding: 14px 16px;
   text-align: center;
   overflow-y: auto;
+  pointer-events: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.38);
+}
+
+.generation-status-dock .loader-orb {
+  display: none;
+}
+
+.generation-status-dock .loader-card h2 {
+  display: inline;
+  margin: 0 8px 0 0;
+  font-size: 1rem;
+}
+
+.generation-status-dock .loader-copy {
+  display: none;
+}
+
+.generation-status-dock .loader-progress-shell {
+  margin-top: 10px;
+  padding: 10px 12px;
+}
+
+.generation-status-dock .loader-badge {
+  padding: 5px 8px;
+  font-size: 10px;
+}
+
+.generation-status-dock .loader-progress-bar {
+  height: 7px;
+  margin: 9px 0 7px;
+}
+
+.generation-status-dock .loader-progress-meta {
+  font-size: 11px;
+}
+
+.generation-status-dock .loader-steps,
+.generation-status-dock .loader-assets {
+  display: none;
 }
 
 .loader-orb {
@@ -4480,7 +4520,21 @@ textarea {
   padding: 16px;
 }
 
-.loader-overlay {
+.generation-status-dock {
+  backdrop-filter: none;
+  background: transparent;
+}
+
+.generation-status-dock .loader-card {
+  width: 100%;
+  padding: 14px 16px;
+}
+
+.generation-status-dock .loader-card h2 {
+  font-size: 1rem;
+}
+
+.loader-overlay:not(.generation-status-dock) {
   backdrop-filter: blur(12px);
   background: rgba(2, 6, 12, 0.38);
 }
