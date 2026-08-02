@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import AppFrame from "../app/AppFrame";
 import { useAppState } from "../app/AppProvider";
+import { navigateWithTransition } from "../../lib/pageTransition";
 import WorkspacePage from "../app/WorkspacePage";
 
 export default function WorkspaceRoute() {
@@ -60,8 +61,8 @@ export default function WorkspaceRoute() {
         saveStatus={app.workspaceSaveStatus}
         selectedAsset={app.selectedAsset}
         lastGeneratedCount={app.lastGeneratedCount}
-        onGoToIntegrations={() => router.push("/integrations")}
-        onGoToMain={() => router.push("/")}
+        onGoToIntegrations={() => navigateWithTransition(router, "/integrations")}
+        onGoToMain={() => navigateWithTransition(router, "/")}
       />
     </AppFrame>
   );

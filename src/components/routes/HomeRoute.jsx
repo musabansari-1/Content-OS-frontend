@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import AppFrame from "../app/AppFrame";
 import HomePage from "../app/HomePage";
 import { useAppState } from "../app/AppProvider";
+import { navigateWithTransition } from "../../lib/pageTransition";
 
 export default function HomeRoute() {
   const app = useAppState();
@@ -39,7 +40,7 @@ export default function HomeRoute() {
         onGenerate={app.handleGenerate}
         unavailableMessage={app.unavailableMessage}
         workspaceAssets={app.workspaceAssets}
-        onGoToWorkspace={() => router.push("/workspace")}
+        onGoToWorkspace={() => navigateWithTransition(router, "/workspace")}
       />
     </AppFrame>
   );

@@ -1,10 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GenerationLoader } from "./WorkspacePage";
+
+// Layout effects don't run on the server; use the effect variant that
+// matches the environment so SSR renders cleanly and the entrance class is
+// applied before paint on the client.
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 import { useAppState } from "./AppProvider";
 import { APP_NAME, GOOGLE_CLIENT_ID } from "../../lib/appConstants";
+import {
+  clearPageDirection,
+  getPageDirection,
+  markHeaderDropPlayed,
+  shouldPlayHeaderDrop,
+} from "../../lib/pageTransition";
 import { Icon, NavLink, BrandMark, Notice } from "../ui";
 
 function InlineInfoIcon({ className = "h-4 w-4" }) {
@@ -195,7 +207,7 @@ function AuthCard({ authSectionRef }) {
 
   return (
     <section
-      className="rounded-2xl border border-white/10 bg-bg-elevated p-6 text-white shadow-panel backdrop-blur"
+      className="auth-card p-6 text-white"
       id="auth"
       ref={authSectionRef}
     >
@@ -557,10 +569,23 @@ function AuthScreen() {
     });
   };
 
+  const handleCardMouseMove = (event) => {
+    const element = event.currentTarget;
+    const rect = element.getBoundingClientRect();
+    element.style.setProperty("--sx", `${event.clientX - rect.left}px`);
+    element.style.setProperty("--sy", `${event.clientY - rect.top}px`);
+  };
+
   return (
-    <div className="relative min-h-screen bg-bg text-[#f6efe7]">
+    <div className="auth-scene relative min-h-screen bg-bg text-[#f6efe7]">
+      <div aria-hidden="true" className="auth-atmosphere">
+        <div className="auth-orb auth-orb-a" />
+        <div className="auth-orb auth-orb-b" />
+        <div className="auth-orb auth-orb-c" />
+        <div className="auth-grid" />
+      </div>
       <main className="relative z-10 mx-auto w-full max-w-7xl px-5 py-6 sm:px-8 lg:px-10">
-        <header className="sticky top-4 z-30 flex flex-col gap-4 rounded-2xl border border-white/10 bg-bg-elevated/90 px-4 py-4 backdrop-blur xl:flex-row xl:items-center xl:justify-between">
+        <header className="auth-header sticky top-4 z-30 flex flex-col gap-4 px-4 py-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3">
             <BrandMark size="md" />
 
@@ -569,7 +594,7 @@ function AuthScreen() {
                 {APP_NAME}
               </span>
               <span className="text-xs text-muted">
-                AI content studio
+                One video. Every asset.
               </span>
             </div>
           </div>
@@ -630,7 +655,7 @@ function AuthScreen() {
         <div className="mt-6 space-y-6">
           <section
             id="product"
-            className="overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02)),radial-gradient(circle_at_top_left,rgba(255,138,61,0.18),transparent_32%),radial-gradient(circle_at_80%_20%,rgba(86,178,156,0.14),transparent_30%),linear-gradient(180deg,#08131f,#0a111b)] p-5 shadow-[0_34px_120px_rgba(0,0,0,0.35)] sm:p-8 lg:p-10"
+            className="hero-card rise overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02)),radial-gradient(circle_at_top_left,rgba(255,138,61,0.18),transparent_32%),radial-gradient(circle_at_80%_20%,rgba(86,178,156,0.14),transparent_30%),linear-gradient(180deg,#08131f,#0a111b)] p-5 sm:p-8 lg:p-10"
           >
             <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
               <div className="grid gap-8">
@@ -639,7 +664,8 @@ function AuthScreen() {
                     For creators, consultants, and lean teams
                   </p>
                   <h1 className="max-w-[11ch] font-display text-[clamp(2.8rem,6vw,5rem)] font-bold leading-[0.94] tracking-tight text-white">
-                    Create weeks of content from one strong source.
+                    Create weeks of content from{" "}
+                    <span className="text-gradient">one strong source.</span>
                   </h1>
                   <p className="max-w-3xl text-base leading-8 text-[#d8e0ea] sm:text-lg">
                     {APP_NAME} helps you save your voice, turn videos and transcripts
@@ -650,17 +676,10 @@ function AuthScreen() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <a
-                    className="inline-flex h-11 items-center justify-center rounded-xl bg-accent px-5 text-sm font-semibold leading-none text-[#0c1420] shadow-[0_18px_40px_rgba(255,138,61,0.28)] transition hover:-translate-y-0.5 hover:bg-accent-strong"
-                    href="#auth"
-                    onClick={scrollToAuth}
-                  >
+                  <a className="cta-primary" href="#auth" onClick={scrollToAuth}>
                     Start free
                   </a>
-                  <a
-                    className="inline-flex h-11 items-center justify-center rounded-xl border border-white/12 bg-white/5 px-5 text-sm font-semibold leading-none text-white transition hover:-translate-y-0.5 hover:bg-white/10"
-                    href="#workflow"
-                  >
+                  <a className="cta-secondary" href="#workflow">
                     See how it works
                   </a>
                 </div>
@@ -682,7 +701,7 @@ function AuthScreen() {
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-[1.5rem] border border-white/10 bg-bg-elevated/80 p-5">
+                  <div className="hover-card rounded-[1.5rem] border border-white/10 bg-bg-elevated/80 p-5" onMouseMove={handleCardMouseMove}>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7ab8c9]">
                       Why sign up
                     </p>
@@ -691,7 +710,7 @@ function AuthScreen() {
                       and billing history stay attached to the same account.
                     </p>
                   </div>
-                  <div className="rounded-[1.5rem] border border-white/10 bg-bg-elevated/80 p-5">
+                  <div className="hover-card rounded-[1.5rem] border border-white/10 bg-bg-elevated/80 p-5" onMouseMove={handleCardMouseMove}>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7ab8c9]">
                       Source flexibility
                     </p>
@@ -720,7 +739,7 @@ function AuthScreen() {
                   </div>
 
                   <div className="mt-5 grid gap-3">
-                    <div className="rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
+                    <div className="hover-card rounded-[1.4rem] border border-white/10 bg-white/5 p-4" onMouseMove={handleCardMouseMove}>
                       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9eacc0]">
                         Voice profile
                       </p>
@@ -730,7 +749,7 @@ function AuthScreen() {
                       </p>
                     </div>
 
-                    <div className="rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
+                    <div className="hover-card rounded-[1.4rem] border border-white/10 bg-white/5 p-4" onMouseMove={handleCardMouseMove}>
                       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9eacc0]">
                         Output types
                       </p>
@@ -784,7 +803,8 @@ function AuthScreen() {
 
           <section
             id="features"
-            className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02)),#08111b] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-8"
+            className="rise rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02)),#08111b] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-8"
+            style={{ animationDelay: "120ms" }}
           >
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
@@ -804,8 +824,9 @@ function AuthScreen() {
             <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {productPillars.map((feature) => (
                 <article
-                  className="rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02)),#0b1521] p-5"
+                  className="hover-card rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02)),#0b1521] p-5"
                   key={feature.title}
+                  onMouseMove={handleCardMouseMove}
                 >
                   <span className="inline-flex rounded-full border border-[#f2a666]/20 bg-[#f2a666]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#ffd7b4]">
                     {feature.kicker}
@@ -823,7 +844,8 @@ function AuthScreen() {
 
           <section
             id="workflow"
-            className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02)),#08111b] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-8"
+            className="rise rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02)),#08111b] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-8"
+            style={{ animationDelay: "240ms" }}
           >
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
@@ -844,8 +866,9 @@ function AuthScreen() {
             <div className="mt-8 grid gap-4 xl:grid-cols-4">
               {workflowSteps.map((step) => (
                 <article
-                  className="rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02)),#0b1521] p-5"
+                  className="hover-card rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.02)),#0b1521] p-5"
                   key={step.step}
+                  onMouseMove={handleCardMouseMove}
                 >
                   <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7ab8c9]">
                     Step {step.step}
@@ -864,7 +887,8 @@ function AuthScreen() {
           <div className="grid gap-6 lg:grid-cols-2">
             <section
               id="publishing"
-              className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02)),#08111b] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-8"
+              className="rise rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02)),#08111b] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-8"
+              style={{ animationDelay: "360ms" }}
             >
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-warning">
                 Publishing
@@ -911,7 +935,8 @@ function AuthScreen() {
 
             <section
               id="plans"
-              className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02)),#08111b] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-8"
+              className="rise rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02)),#08111b] p-6 shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:p-8"
+              style={{ animationDelay: "480ms" }}
             >
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-warning">
                 Plans and account
@@ -951,7 +976,7 @@ function AuthScreen() {
           </div>
         </div>
 
-        <footer className="mt-12 grid gap-6 rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015)),#07101a] px-6 py-8 text-sm text-muted shadow-[0_24px_70px_rgba(0,0,0,0.25)] sm:px-8 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
+        <footer className="auth-footer mt-12 grid gap-6 rounded-[2rem] px-6 py-8 text-sm text-muted sm:px-8 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
           <div className="flex items-start gap-4">
             <BrandMark size="lg" />
             <div>
@@ -1005,11 +1030,50 @@ export default function AppFrame({ route, children }) {
   } = useAppState();
   const showVerificationBanner = Boolean(user && !user.email_verified);
 
+  // Direction of the navigation that mounted this page. The entrance class is
+  // added imperatively (never rendered) to the fresh `.app-page` element only
+  // — never to the outgoing one — so the old page's animation can't restart
+  // (a visible jerk) and later React re-renders can't strip or change it.
+  // Null on first load / direct entries.
+  const pageRef = useRef(null);
+  const headerRef = useRef(null);
+
+  useIsomorphicLayoutEffect(() => {
+    const el = pageRef.current;
+    const direction = getPageDirection();
+    if (el && direction) {
+      el.classList.add(
+        direction === "forward" ? "page-enter-forward" : "page-enter-backward"
+      );
+    }
+    // Fresh entry (no direction recorded — first load, refresh, or login
+    // redirect): play the navbar drop-in once per session. In-app
+    // navigations carry a direction, and the session guard also covers
+    // back/forward and plain redirects (where the direction is null), so
+    // the navbar stays perfectly still for the whole session after its
+    // single drop-in instead of moving on every route mount.
+    if (
+      !direction &&
+      shouldPlayHeaderDrop() &&
+      headerRef.current &&
+      bootStatus !== "loading"
+    ) {
+      headerRef.current.classList.add("header-enter");
+      markHeaderDropPlayed();
+    }
+    // Forget the direction so a stale value can't leak into later plain
+    // navigations (e.g. VerifyEmailPage's router.replace("/")).
+    clearPageDirection();
+  }, [route, bootStatus]);
+
   if (bootStatus === "loading") {
     return (
       <div className="app-shell">
+        <div className="ambient ambient-1" />
+        <div className="ambient ambient-2" />
         <main className="app app-loading">
-          <div className="panel boot-panel">
+          <div className="panel boot-panel rise">
+            <div className="loader-orb" aria-hidden="true" />
             <p className="eyebrow">{APP_NAME}</p>
             <h1>Loading your workspace</h1>
             <p className="muted-copy">
@@ -1029,9 +1093,10 @@ export default function AppFrame({ route, children }) {
     <div className="app-shell">
       <div className="ambient ambient-1" />
       <div className="ambient ambient-2" />
+      <div className="ambient ambient-3" />
 
       <main className="app workspace-layout">
-        <header className="header-premium">
+        <header className="header-premium" ref={headerRef}>
           <div className="header-brand-compact">
             <BrandMark size="md" />
             <div className="brand-text">
@@ -1100,7 +1165,9 @@ export default function AppFrame({ route, children }) {
           />
         ) : null}
 
-        {children}
+        <div className="app-page" key={route} ref={pageRef} tabIndex={-1}>
+          {children}
+        </div>
       </main>
 
       {generateStatus === "loading" ? (
