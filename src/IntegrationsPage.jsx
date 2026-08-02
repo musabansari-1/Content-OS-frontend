@@ -561,11 +561,19 @@ function IntegrationCard({
     connected: "status-connected",
   };
 
+  const handleMouseMove = (event) => {
+    const element = event.currentTarget;
+    const rect = element.getBoundingClientRect();
+    element.style.setProperty("--sx", `${event.clientX - rect.left}px`);
+    element.style.setProperty("--sy", `${event.clientY - rect.top}px`);
+  };
+
   return (
     <div
       className={`integration-card ${isConnected ? "connected" : ""} ${
         statusMap[integration.status] === "Coming Soon" ? "coming-soon" : ""
       }`}
+      onMouseMove={handleMouseMove}
     >
       <div className="integration-card-top">
         <div className="integration-icon-wrapper">

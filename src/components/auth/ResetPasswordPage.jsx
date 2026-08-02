@@ -51,7 +51,7 @@ export default function ResetPasswordPage({ initialToken = "" }) {
       eyebrow="Password reset"
       title="Set a new password"
     >
-      <div className="rounded-xl border border-white/10 bg-bg-elevated/80 p-5 shadow-panel">
+      <div className="auth-inner-panel p-5">
         <form className="stack-form" onSubmit={handleSubmit}>
           <label className="field">
             <span>New password</span>

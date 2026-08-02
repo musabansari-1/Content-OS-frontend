@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { APP_NAME, SUPPORT_EMAIL, SUPPORT_MAILTO } from "../../lib/appConstants";
 import { buildSeoMetadata } from "../../lib/seo";
-import { BrandMark } from "../../components/ui";
+import { BrandMark, Scene } from "../../components/ui";
 
 export const metadata = buildSeoMetadata({
   title: "Contact Support",
@@ -11,37 +11,36 @@ export const metadata = buildSeoMetadata({
 
 export default function SupportPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-bg text-ink">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-[-120px] top-[-120px] h-[360px] w-[360px] rounded-full bg-accent/20 blur-[90px]" />
-        <div className="absolute bottom-[-140px] right-[-120px] h-[380px] w-[380px] rounded-full bg-accent-cool/15 blur-[100px]" />
+    <Scene maxWidth="max-w-4xl">
+      <div className="rise mb-8 flex flex-wrap items-center justify-between gap-4">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-3 text-sm font-semibold text-ink/90 transition hover:text-white"
+        >
+          <BrandMark size="sm" />
+          <span>{APP_NAME}</span>
+        </Link>
+
+        <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 text-sm text-muted">
+          <Link
+            className="rounded-full px-4 py-1.5 transition hover:bg-white/10 hover:text-white"
+            href="/privacy"
+          >
+            Privacy
+          </Link>
+          <Link
+            className="rounded-full px-4 py-1.5 transition hover:bg-white/10 hover:text-white"
+            href="/terms"
+          >
+            Terms
+          </Link>
+        </div>
       </div>
 
-      <main className="relative z-10 mx-auto w-full max-w-4xl px-5 py-8 sm:px-8 lg:px-10">
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-3 text-sm font-medium text-ink/90 transition hover:text-white"
-          >
-            <BrandMark size="sm" />
-            <span>{APP_NAME}</span>
-          </Link>
-
-          <div className="flex items-center gap-4 text-sm text-muted">
-            <Link className="transition hover:text-white" href="/privacy">
-              Privacy
-            </Link>
-            <Link className="transition hover:text-white" href="/terms">
-              Terms
-            </Link>
-          </div>
-        </div>
-
-        <section className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-panel backdrop-blur sm:p-8 lg:p-10">
+      <div className="rise" style={{ animationDelay: "80ms" }}>
+        <section className="legal-card p-6 sm:p-8 lg:p-10">
           <div className="max-w-3xl">
-            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.28em] text-warning">
-              Contact Support
-            </p>
+            <p className="eyebrow mb-4">Contact Support</p>
             <h1 className="font-display text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-5xl">
               Need help with your workspace?
             </h1>
@@ -52,7 +51,7 @@ export default function SupportPage() {
           </div>
 
           <div className="mt-10 grid gap-5 md:grid-cols-[1.15fr_0.85fr]">
-            <section className="rounded-xl border border-white/10 bg-bg-elevated/80 p-5 sm:p-6">
+            <section className="legal-section p-5 sm:p-6">
               <h2 className="font-display text-2xl font-semibold tracking-tight text-white">
                 Email support
               </h2>
@@ -62,28 +61,28 @@ export default function SupportPage() {
                 details so we can help faster.
               </p>
               <a
-                className="mt-6 inline-flex rounded-full bg-accent px-6 py-3 text-sm font-semibold text-[#0c1420] shadow-accent transition hover:-translate-y-0.5 hover:bg-accent-strong"
+                className="ui-btn ui-btn-primary ui-btn-md ui-btn-pill mt-6"
                 href={SUPPORT_MAILTO}
               >
                 {SUPPORT_EMAIL}
               </a>
             </section>
 
-            <section className="rounded-xl border border-white/10 bg-bg-elevated/80 p-5 sm:p-6">
+            <section className="legal-section p-5 sm:p-6">
               <h2 className="font-display text-2xl font-semibold tracking-tight text-white">
                 Helpful details
               </h2>
-              <ul className="mt-4 space-y-2 pl-5 text-sm leading-7 text-ink/80 sm:text-base">
-                <li className="list-disc">Billing or checkout issue</li>
-                <li className="list-disc">Login or account access issue</li>
-                <li className="list-disc">Workspace or autosave issue</li>
-                <li className="list-disc">Generation quality or output issue</li>
-                <li className="list-disc">Publishing or integration issue</li>
+              <ul className="mt-4 space-y-2 text-sm leading-7 text-ink/85 sm:text-base">
+                <li>Billing or checkout issue</li>
+                <li>Login or account access issue</li>
+                <li>Workspace or autosave issue</li>
+                <li>Generation quality or output issue</li>
+                <li>Publishing or integration issue</li>
               </ul>
             </section>
           </div>
         </section>
-      </main>
-    </div>
+      </div>
+    </Scene>
   );
 }

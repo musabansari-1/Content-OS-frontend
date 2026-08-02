@@ -83,7 +83,7 @@ export default function VerifyEmailPage({ initialToken = "" }) {
       eyebrow="Email verification"
       title="Confirm your email"
     >
-      <div className="grid gap-4 rounded-xl border border-white/10 bg-bg-elevated/80 p-5 shadow-panel">
+      <div className="auth-inner-panel grid gap-4 p-5">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-warning">
             Status
